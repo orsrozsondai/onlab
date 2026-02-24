@@ -2,6 +2,7 @@
 #include "Vertex.hpp"
 #include <cstdint>
 #include <fstream>
+#include <array>
 #include <glm/ext/vector_float3.hpp>
 #include <vulkan/vulkan_core.h>
 
