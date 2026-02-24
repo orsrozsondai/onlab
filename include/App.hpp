@@ -1,0 +1,92 @@
+#pragma once
+
+#include "Object.hpp"
+#include "RenderContext.hpp"
+#include <glm/ext/vector_float2.hpp>
+#include <glm/ext/vector_float3.hpp>
+#include <sys/types.h>
+#include <vector>
+#include <vulkan/vulkan.h>
+#include <vulkan/vulkan_core.h>
+#define GLFW_INCLUDE_VULKAN
+
+#include <GLFW/glfw3.h>
+#include <glm/glm.hpp>
+
+
+class App {
+    
+
+private:
+    VkInstance instance;
+    GLFWwindow* window;
+    VkSurfaceKHR surface;
+    VkPhysicalDevice physicalDevice;
+    VkDevice device;
+    VkQueue graphicsQueue;
+    VkQueue presentQueue;
+    int graphicsFamily, presentFamily;
+    VkSwapchainKHR swapchain;
+    uint32_t imageCount;
+    VkFormat swapchainFormat;
+    VkExtent2D swapchainExtent;
+    std::vector<VkImageView> imageViews;
+    VkRenderPass renderPass;
+    std::vector<VkFramebuffer> framebuffers;
+    VkCommandPool commandPool;
+    std::vector<VkCommandBuffer> commandBuffers;
+    std::vector<VkSemaphore> imageAvailable;
+    std::vector<VkSemaphore> renderFinished;
+    std::vector<VkFence> inFlightFences;
+    std::vector<VkFence> imagesInFlight;
+
+    size_t currentFrame = 0;
+
+    std::vector<Object> objects;
+
+    glm::vec3 bgcolor =  { 0.05f, 0.05f, 0.1f };
+
+
+    void initInstance(const char* appName);
+
+    void initGLFW(const char* appName, int width, int height);
+
+    void initSurface();
+
+    void selectDevice();
+
+    void createSwapchain();
+
+    void createImageViews();
+
+    void createRenderPass();
+
+    void createFramebuffers();
+
+    void createCommandPool();
+
+    void createCommandBuffers();
+
+    void recordCommands();
+
+    void createSyncObjects();
+
+
+public:
+    App(const char* appName, const glm::vec2& windowSize);
+
+    virtual void run();
+
+    RenderContext getRenderContext() const;
+
+    VkExtent2D getSwapchainExtent() const;
+    
+    VkQueue getGraphicsQueue() const;
+
+    VkCommandPool getCommandPool() const;
+
+    void addObject(const Object& object);
+
+
+    ~App();
+};
