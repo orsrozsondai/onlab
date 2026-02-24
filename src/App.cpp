@@ -585,6 +585,8 @@ App::~App() {
 
 }
 void App::run() {
+
+    auto starttime = std::chrono::high_resolution_clock::now();
     
     while (!glfwWindowShouldClose(window)) {
 
@@ -617,7 +619,9 @@ void App::run() {
 
         // uniform test
         UniformBufferObject ubo{};
-        ubo.model = glm::rotate(glm::mat4(1.0f), glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+        float dt = std::chrono::duration<float>(std::chrono::high_resolution_clock::now() - starttime).count();
+
+        ubo.model = glm::rotate(glm::mat4(1.0f), dt * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
         ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
         ubo.proj = glm::perspective(glm::radians(45.0f), swapchainExtent.width / (float) swapchainExtent.height, 0.1f, 10.0f);
         ubo.proj[1][1] *= -1;
