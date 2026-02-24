@@ -1,14 +1,17 @@
 #include "App.hpp"
 #include "Object.hpp"
 #include "Pipeline.hpp"
+#include "UniformBufferObject.hpp"
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <iostream>
 #include <ostream>
+#include <stdexcept>
 #include <vector>
 #include <vulkan/vulkan_core.h>
 #include <algorithm>
+#include <glm/gtc/matrix_transform.hpp>
 
 
 void App::initInstance(const char* appName) {
@@ -478,7 +481,7 @@ void App::recordCommands() {
 
             vkCmdSetScissor(commandBuffers[i], 0, 1, &scissor);
 
-            object.draw(commandBuffers[i]);
+            object.draw(commandBuffers[i], i);
 
         }
 
@@ -519,6 +522,22 @@ void App::createSyncObjects() {
 
 }
 
+void App::createDescriptorPool() {
+    VkDescriptorPoolSize poolSize{};
+    poolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    poolSize.descriptorCount = imageCount * 10;
+
+    VkDescriptorPoolCreateInfo poolInfo{};
+    poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    poolInfo.poolSizeCount = 1;
+    poolInfo.pPoolSizes = &poolSize;
+    poolInfo.maxSets = imageCount * 10;
+
+    if (vkCreateDescriptorPool(device, &poolInfo, nullptr, &descriptorPool) != VK_SUCCESS) {
+        throw std::runtime_error("failed to creater descriptor pool!");
+    }
+}
+
 App::App(const char* appName, const glm::vec2& windowSize) : objects(std::vector<Object>()){
     initGLFW(appName, windowSize.x, windowSize.y);
     initInstance(appName);
@@ -532,9 +551,11 @@ App::App(const char* appName, const glm::vec2& windowSize) : objects(std::vector
     createCommandBuffers();
     recordCommands();
     createSyncObjects();
+    createDescriptorPool();
 }
 App::~App() {
     vkDeviceWaitIdle(device);
+    vkDestroyDescriptorPool(device, descriptorPool, nullptr);
     for (Object object : objects) {
         object.destroy();
     }
@@ -564,6 +585,7 @@ App::~App() {
 
 }
 void App::run() {
+    
     while (!glfwWindowShouldClose(window)) {
 
         glfwPollEvents();
@@ -592,6 +614,14 @@ void App::run() {
 
         // 5. Mark image as now in use by this frame
         imagesInFlight[imageIndex] = inFlightFences[currentFrame];
+
+        // uniform test
+        UniformBufferObject ubo{};
+        ubo.model = glm::rotate(glm::mat4(1.0f), glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+        ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+        ubo.proj = glm::perspective(glm::radians(45.0f), swapchainExtent.width / (float) swapchainExtent.height, 0.1f, 10.0f);
+        ubo.proj[1][1] *= -1;
+        objects[0].setUBO(&ubo, imageIndex);
 
         // 6. Submit command buffer
         VkSubmitInfo submit{};
@@ -663,7 +693,8 @@ RenderContext App::getRenderContext() const {
         renderPass,
         graphicsQueue,
         commandPool, 
-        imageCount
+        imageCount,
+        descriptorPool
     };
 }
 

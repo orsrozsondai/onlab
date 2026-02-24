@@ -2,6 +2,7 @@
 
 #include "Object.hpp"
 #include "RenderContext.hpp"
+#define GLM_FORCE_RADIANS
 #include <glm/ext/vector_float2.hpp>
 #include <glm/ext/vector_float3.hpp>
 #include <sys/types.h>
@@ -39,6 +40,7 @@ private:
     std::vector<VkSemaphore> renderFinished;
     std::vector<VkFence> inFlightFences;
     std::vector<VkFence> imagesInFlight;
+    VkDescriptorPool descriptorPool;
 
     size_t currentFrame = 0;
 
@@ -70,6 +72,8 @@ private:
     void recordCommands();
 
     void createSyncObjects();
+
+    void createDescriptorPool();
 
 
 public:

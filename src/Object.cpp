@@ -5,6 +5,8 @@
 #include <cstdint>
 #include <cstring>
 #include <stdexcept>
+#include <vector>
+#include "UniformBufferObject.hpp"
 #include <vulkan/vulkan_core.h>
 
 Object::Object(const RenderContext& context, Pipeline* pipeline, const std::vector<Vertex>& vertices) : pipeline(pipeline), context(context), vertices(vertices){
@@ -21,13 +23,12 @@ Object::Object(const RenderContext& context, Pipeline* pipeline, const std::vect
         stagingBuffer,
         stagingMemory
     );
-    // Copy vertex data
+    
     void* data;
     vkMapMemory(context.device, stagingMemory, 0, size, 0, &data);
     memcpy(data, vertices.data(), (size_t)size);
     vkUnmapMemory(context.device, stagingMemory);
 
-    // 2️⃣ Create device-local vertex buffer
     createBuffer(
         size,
         VK_BUFFER_USAGE_TRANSFER_DST_BIT |
@@ -37,7 +38,6 @@ Object::Object(const RenderContext& context, Pipeline* pipeline, const std::vect
         vertexMemory
     );
 
-    // 3️⃣ Copy staging → GPU buffer
     copyBuffer(
         context.device,
         context.commandPool,
@@ -49,15 +49,30 @@ Object::Object(const RenderContext& context, Pipeline* pipeline, const std::vect
 
     vkDestroyBuffer(context.device, stagingBuffer, nullptr);
     vkFreeMemory(context.device, stagingMemory, nullptr);
+
+    createUniformBuffers();
+
+    createDescriptorSets();
     
 
 }
 
-void Object::draw(VkCommandBuffer cmd) const {
-    
+void Object::draw(VkCommandBuffer cmd, size_t frameIndex) const {
     VkBuffer buffers[] = { vertexBuffer };
     VkDeviceSize offsets[] = { 0 };
     vkCmdBindVertexBuffers(cmd, 0, 1, buffers, offsets);
+    vkCmdBindDescriptorSets(
+       cmd,
+       VK_PIPELINE_BIND_POINT_GRAPHICS,
+       pipeline->getPipelineLayout(),
+       0,                     
+       1,
+       &descriptorSets[frameIndex],
+       0,
+       nullptr
+)   ;
+    
+    
     vkCmdDraw(cmd, vertices.size(), 1, 0, 0);
 }
 
@@ -73,11 +88,9 @@ void Object::createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryP
         throw std::runtime_error("failed to create buffer!");
     }
 
-    // 2️⃣ Get memory requirements
     VkMemoryRequirements memRequirements;
     vkGetBufferMemoryRequirements(context.device, buffer, &memRequirements);
 
-    // find memory type
     uint32_t memoryTypeIndex;
     bool found = false;
     VkPhysicalDeviceMemoryProperties memProperties;
@@ -97,7 +110,6 @@ void Object::createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryP
 
     if (!found) throw std::runtime_error("failed to find suitable memory type!");
 
-    // 3️⃣ Allocate memory
     VkMemoryAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
     allocInfo.allocationSize = memRequirements.size;
@@ -107,7 +119,6 @@ void Object::createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryP
         throw std::runtime_error("failed to allocate buffer memory!");
     }
 
-    // 4️⃣ Bind memory to buffer
     vkBindBufferMemory(context.device, buffer, bufferMemory, 0);
 }
 
@@ -119,7 +130,7 @@ void Object::copyBuffer(
     VkBuffer dstBuffer,
     VkDeviceSize size
 ) {
-    // 1️⃣ Allocate temporary command buffer
+    
     VkCommandBufferAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
     allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
@@ -129,14 +140,14 @@ void Object::copyBuffer(
     VkCommandBuffer commandBuffer;
     vkAllocateCommandBuffers(device, &allocInfo, &commandBuffer);
 
-    // 2️⃣ Begin recording (one-time submit)
+    
     VkCommandBufferBeginInfo beginInfo{};
     beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 
     vkBeginCommandBuffer(commandBuffer, &beginInfo);
 
-    // 3️⃣ Copy command
+    
     VkBufferCopy copyRegion{};
     copyRegion.srcOffset = 0;
     copyRegion.dstOffset = 0;
@@ -152,7 +163,7 @@ void Object::copyBuffer(
 
     vkEndCommandBuffer(commandBuffer);
 
-    // 4️⃣ Submit
+    
     VkSubmitInfo submitInfo{};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     submitInfo.commandBufferCount = 1;
@@ -161,7 +172,6 @@ void Object::copyBuffer(
     vkQueueSubmit(graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
     vkQueueWaitIdle(graphicsQueue);
 
-    // 5️⃣ Free command buffer
     vkFreeCommandBuffers(device, commandPool, 1, &commandBuffer);
 }
 Pipeline* Object::getPipeline() const {
@@ -171,4 +181,71 @@ Pipeline* Object::getPipeline() const {
 void Object::destroy(){
     vkDestroyBuffer(context.device, vertexBuffer,  nullptr);
     vkFreeMemory(context.device, vertexMemory, nullptr);
+    for (size_t i = 0; i < context.imageCount; i++) {
+        vkDestroyBuffer(context.device, uniformBuffers[i], nullptr);
+        vkFreeMemory(context.device, uniformBuffersMemory[i], nullptr);
+    }
+
+
+}
+
+void Object::createUniformBuffers() {
+    uniformBuffers = std::vector<VkBuffer>(context.imageCount);
+    uniformBuffersMemory = std::vector<VkDeviceMemory>(context.imageCount);
+    uniformBuffersMapped = std::vector<void*>(context.imageCount);
+
+    VkDeviceSize size = sizeof(UniformBufferObject);
+
+    for (size_t i = 0; i < context.imageCount; i++) {
+        createBuffer(size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, uniformBuffers[i], uniformBuffersMemory[i]);
+        vkMapMemory(context.device, uniformBuffersMemory[i], 0, size, 0, &uniformBuffersMapped[i]);
+
+    }
+
+}
+
+void Object::createDescriptorSets() {
+    std::vector<VkDescriptorSetLayout> layouts(
+        context.imageCount,
+        pipeline->getDescriptorSetLayout()
+    );
+
+    VkDescriptorSetAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    allocInfo.descriptorPool = context.descriptorPool;
+    allocInfo.descriptorSetCount = layouts.size();
+    allocInfo.pSetLayouts = layouts.data();
+
+    descriptorSets = std::vector<VkDescriptorSet>(context.imageCount);
+
+    vkAllocateDescriptorSets(
+        context.device,
+        &allocInfo,
+        descriptorSets.data()
+    );
+
+    for (size_t i = 0; i < context.imageCount; i++)
+    {
+        VkDescriptorBufferInfo bufferInfo{};
+        bufferInfo.buffer = uniformBuffers[i];
+        bufferInfo.offset = 0;
+        bufferInfo.range  = sizeof(UniformBufferObject);
+
+        VkWriteDescriptorSet write{};
+        write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        write.dstSet = descriptorSets[i];
+        write.dstBinding = 0; 
+        write.dstArrayElement = 0;
+        write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        write.descriptorCount = 1;
+        write.pBufferInfo = &bufferInfo;
+
+        vkUpdateDescriptorSets(
+            context.device,
+            1,
+            &write,
+            0,
+            nullptr
+        );
+    }
 }

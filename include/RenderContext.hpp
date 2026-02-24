@@ -9,4 +9,5 @@ struct RenderContext {
     VkQueue graphicsQueue;
     VkCommandPool commandPool;
     uint32_t imageCount;
+    VkDescriptorPool descriptorPool;
 };

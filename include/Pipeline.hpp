@@ -12,6 +12,7 @@ private:
 
     VkPipeline pipeline;
     VkPipelineLayout pipelineLayout;
+    VkDescriptorSetLayout descriptorSetLayout;
 
     void create();
     static std::vector<char> readFile(const std::string& path);
@@ -21,6 +22,9 @@ public:
 
     Pipeline(const RenderContext& context, const std::string& vert, const std::string&frag);
 
+    VkDescriptorSetLayout getDescriptorSetLayout() const { return descriptorSetLayout;}
+
+    VkPipelineLayout getPipelineLayout() const { return pipelineLayout;}
 
     void bind(VkCommandBuffer cmd) const;
 
