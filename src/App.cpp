@@ -2,6 +2,7 @@
 #include "Object.hpp"
 #include "Pipeline.hpp"
 #include "UniformBufferObject.hpp"
+#include <GLFW/glfw3.h>
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
@@ -44,8 +45,15 @@ void App::initInstance(const char* appName) {
 void App::initGLFW(const char* appName, int width, int height) {
     glfwInit();
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
+    glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
     window = glfwCreateWindow(width, height, appName, nullptr, nullptr);
+    glfwSetWindowUserPointer(window, this);
+    glfwSetFramebufferSizeCallback(window, framebufferResizeCallback);
+}
+
+void App::framebufferResizeCallback(GLFWwindow* window, int width, int height) {
+    auto app = reinterpret_cast<App*>(glfwGetWindowUserPointer(window));
+    app->framebufferResized = true;
 }
 
 void App::initSurface() {
@@ -98,7 +106,6 @@ void App::selectDevice() {
             &present
         );
 
-        // ⭐ BEST CASE: one family does both
         if (graphics && present) {
             graphicsFamily = i;
             presentFamily  = i;
@@ -287,7 +294,7 @@ void App::createSwapchain() {
 
     std::cout << "device: " << device << "\n";
     std::cout << "surface: " << surface << "\n";
-    std::cout << "imageCount: " << info.minImageCount << "\n";
+    std::cout << "imageCount: " << imageCount << "\n";
     std::cout << "format: " << info.imageFormat << "\n";
     std::cout << "extent: " << info.imageExtent.width 
           << "x" << info.imageExtent.height << "\n";
@@ -538,7 +545,7 @@ void App::createDescriptorPool() {
     }
 }
 
-App::App(const char* appName, const glm::vec2& windowSize) : objects(std::vector<Object>()){
+App::App(const char* appName, const glm::vec2& windowSize) : objects(std::vector<Object>()), framebufferResized(false) {
     initGLFW(appName, windowSize.x, windowSize.y);
     initInstance(appName);
     initSurface();
@@ -597,7 +604,7 @@ void App::run() {
 
         // 2. Acquire swapchain image
         uint32_t imageIndex;
-        vkAcquireNextImageKHR(
+        VkResult result = vkAcquireNextImageKHR(
             device,
             swapchain,
             UINT64_MAX,
@@ -605,6 +612,9 @@ void App::run() {
             VK_NULL_HANDLE,
             &imageIndex
         );
+        if (result == VK_ERROR_OUT_OF_DATE_KHR) {
+            recreateSwapchain();
+        }
 
         // 3. If the image is already in flight, wait for it
         if (imagesInFlight[imageIndex] != VK_NULL_HANDLE) {
@@ -657,10 +667,15 @@ void App::run() {
         present.pSwapchains = &swapchain;
         present.pImageIndices = &imageIndex;
 
-        VkResult result = vkQueuePresentKHR(presentQueue, &present);
-        if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
-            // TODO: recreate swapchain here
-        } else if (result != VK_SUCCESS) {
+        result = vkQueuePresentKHR(presentQueue, &present);
+        if (result == VK_ERROR_OUT_OF_DATE_KHR ||
+            result == VK_SUBOPTIMAL_KHR ||
+            framebufferResized)
+        {
+            framebufferResized = false;
+            recreateSwapchain();
+        }
+        else if (result != VK_SUCCESS) {
             throw std::runtime_error("failed to present swapchain image!");
         }
 
@@ -687,6 +702,33 @@ void App::run() {
         }
         
     }
+
+}
+
+void App::recreateSwapchain() {
+    int width = 0, height = 0;
+
+    // Handle minimized window
+    while (width == 0 || height == 0) {
+        glfwGetFramebufferSize(window, &width, &height);
+        glfwWaitEvents();
+    }
+
+    vkDeviceWaitIdle(device);
+
+    for (auto fb : framebuffers)
+        vkDestroyFramebuffer(device, fb, nullptr);
+
+    for (auto view : imageViews)
+        vkDestroyImageView(device, view, nullptr);
+
+    vkDestroySwapchainKHR(device, swapchain, nullptr);
+
+    createSwapchain();
+    createImageViews();
+    // createDepthResources();   // if used
+    createFramebuffers();
+    recordCommands();   // IMPORTANT
 
 }
 

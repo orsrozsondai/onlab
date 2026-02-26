@@ -75,6 +75,10 @@ private:
 
     void createDescriptorPool();
 
+    static void framebufferResizeCallback(GLFWwindow* window, int width, int height);
+
+    void recreateSwapchain();
+
 
 public:
     App(const char* appName, const glm::vec2& windowSize);
@@ -90,6 +94,8 @@ public:
     VkCommandPool getCommandPool() const;
 
     void addObject(const Object& object);
+
+    bool framebufferResized;
 
 
     ~App();
