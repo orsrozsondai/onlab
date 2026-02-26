@@ -37,7 +37,7 @@ void Pipeline::create() {
     binding.stride = sizeof(Vertex);     // size of one vertex
     binding.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 
-    std::array<VkVertexInputAttributeDescription, 2> attributes{};
+    std::array<VkVertexInputAttributeDescription, 3> attributes{};
 
     // POSITION
     attributes[0].binding = 0;
@@ -50,6 +50,12 @@ void Pipeline::create() {
     attributes[1].location = 1;
     attributes[1].format = VK_FORMAT_R32G32B32_SFLOAT;
     attributes[1].offset = offsetof(Vertex, normal);
+
+    // TANGENT
+    attributes[2].binding = 0;
+    attributes[2].location = 2;
+    attributes[2].format = VK_FORMAT_R32G32B32_SFLOAT;
+    attributes[2].offset = offsetof(Vertex, tangent);
 
 
     VkPipelineVertexInputStateCreateInfo vertexInput{};

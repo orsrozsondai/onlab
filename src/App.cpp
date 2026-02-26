@@ -52,7 +52,7 @@ void App::initGLFW(const char* appName, int width, int height) {
 }
 
 void App::framebufferResizeCallback(GLFWwindow* window, int width, int height) {
-    auto app = reinterpret_cast<App*>(glfwGetWindowUserPointer(window));
+    App* app = reinterpret_cast<App*>(glfwGetWindowUserPointer(window));
     app->framebufferResized = true;
 }
 
