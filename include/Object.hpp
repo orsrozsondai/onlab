@@ -28,6 +28,10 @@ private:
 
     void copyBuffer(VkDevice device, VkCommandPool commandPool, VkQueue graphicsQueue, VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
 
+    void createVertexBuffer();
+
+    void uploadVertices();
+
     void createUniformBuffers();
 
     void createDescriptorSets();

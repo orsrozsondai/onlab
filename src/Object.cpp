@@ -10,6 +10,25 @@
 #include <vulkan/vulkan_core.h>
 
 Object::Object(const RenderContext& context, Pipeline* pipeline, const std::vector<Vertex>& vertices) : pipeline(pipeline), context(context), vertices(vertices){
+    createVertexBuffer();
+    uploadVertices();
+    createUniformBuffers();
+    createDescriptorSets();
+}
+
+void Object::createVertexBuffer() {
+    VkDeviceSize size = sizeof(vertices[0]) * vertices.size();
+    createBuffer(
+        size,
+        VK_BUFFER_USAGE_TRANSFER_DST_BIT |
+        VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+        vertexBuffer,
+        vertexMemory
+    );
+}
+
+void Object::uploadVertices() {
     VkDeviceSize size = sizeof(vertices[0]) * vertices.size();
 
     VkBuffer stagingBuffer;
@@ -29,15 +48,6 @@ Object::Object(const RenderContext& context, Pipeline* pipeline, const std::vect
     memcpy(data, vertices.data(), (size_t)size);
     vkUnmapMemory(context.device, stagingMemory);
 
-    createBuffer(
-        size,
-        VK_BUFFER_USAGE_TRANSFER_DST_BIT |
-        VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-        vertexBuffer,
-        vertexMemory
-    );
-
     copyBuffer(
         context.device,
         context.commandPool,
@@ -49,11 +59,6 @@ Object::Object(const RenderContext& context, Pipeline* pipeline, const std::vect
 
     vkDestroyBuffer(context.device, stagingBuffer, nullptr);
     vkFreeMemory(context.device, stagingMemory, nullptr);
-
-    createUniformBuffers();
-
-    createDescriptorSets();
-    
 
 }
 
