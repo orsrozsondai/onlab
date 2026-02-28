@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Camera.hpp"
 #include "Object.hpp"
 #include "RenderContext.hpp"
 #define GLM_FORCE_RADIANS
@@ -48,6 +49,15 @@ private:
 
     glm::vec3 bgcolor =  { 0.05f, 0.05f, 0.1f };
 
+    Camera* camera = nullptr;
+    bool rotatingCamera = false;
+
+    // mouse
+    float lastX = 800 / 2.0f;
+    float lastY = 600 / 2.0f;
+    bool firstMouse = true;
+    float sensitivity = 0.1f;
+
 
     void initInstance(const char* appName);
 
@@ -77,6 +87,14 @@ private:
 
     static void framebufferResizeCallback(GLFWwindow* window, int width, int height);
 
+    static void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
+
+    static void mouseCallback(GLFWwindow* window, double xpos, double ypos);
+
+    static void scrollCallback(GLFWwindow* window, double xoffset, double yoffset);
+
+    static void mouseButtonCallback(GLFWwindow* window, int button, int action, int mods);
+
     void recreateSwapchain();
 
 
@@ -97,6 +115,17 @@ public:
 
     bool framebufferResized;
 
+    void setCamera(Camera* pCamera) {
+        camera = pCamera;
+    }
+
+    Camera* getCamera() const {
+        return camera;
+    }
+
+    void handleMouseInput(double xpos, double ypos);
+    void handleScroll(double xoffset, double yoffset);
+    void handleMouseButton(int button, int action);
 
     ~App();
 };

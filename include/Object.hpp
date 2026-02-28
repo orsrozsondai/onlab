@@ -1,12 +1,17 @@
 #pragma once
 
+#include "Camera.hpp"
 #include "Pipeline.hpp"
 #include "RenderContext.hpp"
-#include "UniformBufferObject.hpp"
 #include "Vertex.hpp"
+#include "VertexUBO.hpp"
 #include <cstddef>
 #include <cstring>
+#include <glm/ext/matrix_transform.hpp>
 #include <glm/ext/vector_float3.hpp>
+#include <iostream>
+#include <iomanip>
+#include <string>
 #include <vector>
 #include <vulkan/vulkan_core.h>
 
@@ -23,6 +28,8 @@ private:
     std::vector<VkDeviceMemory> uniformBuffersMemory;
     std::vector<void*> uniformBuffersMapped;
     std::vector<VkDescriptorSet> descriptorSets;
+
+    VertexUBO vertexUBO;
 
     void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory);
 
@@ -44,8 +51,12 @@ private:
 
     Pipeline* getPipeline() const;
 
-    void setUBO(UniformBufferObject* ubo, size_t index) {
-        memcpy(uniformBuffersMapped[index], ubo, sizeof(UniformBufferObject ));
+    void update(const Camera& camera, size_t index) {
+        vertexUBO.model = glm::identity<glm::mat4>();
+        vertexUBO.view = camera.view();
+        vertexUBO.proj = camera.proj();
+
+        memcpy(uniformBuffersMapped[index], &vertexUBO, sizeof(VertexUBO));
     }
 
     void destroy();

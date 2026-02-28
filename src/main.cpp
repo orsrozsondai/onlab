@@ -1,4 +1,5 @@
 #include "App.hpp"
+#include "Camera.hpp"
 #include "Object.hpp"
 #include "Pipeline.hpp"
 #include <GLFW/glfw3.h>
@@ -62,9 +63,17 @@ int main() {
         {{-0.5f,-0.5f, 0.5f}, {0,-1,0}, {1,0,0}},
     };
 
-    Object o = Object(app.getRenderContext(), &p, cube);
+    Object o(app.getRenderContext(), &p, cube);
     
     app.addObject(o);
+
+    Camera camera(
+        {0, 0, 0},
+        5.0f,
+        16.0f/9.0f,
+        45.0f
+    );
+    app.setCamera(&camera);
 
     try {
         app.run();

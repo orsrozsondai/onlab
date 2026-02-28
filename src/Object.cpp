@@ -6,7 +6,7 @@
 #include <cstring>
 #include <stdexcept>
 #include <vector>
-#include "UniformBufferObject.hpp"
+#include "VertexUBO.hpp"
 #include <vulkan/vulkan_core.h>
 
 Object::Object(const RenderContext& context, Pipeline* pipeline, const std::vector<Vertex>& vertices) : pipeline(pipeline), context(context), vertices(vertices){
@@ -199,7 +199,7 @@ void Object::createUniformBuffers() {
     uniformBuffersMemory = std::vector<VkDeviceMemory>(context.imageCount);
     uniformBuffersMapped = std::vector<void*>(context.imageCount);
 
-    VkDeviceSize size = sizeof(UniformBufferObject);
+    VkDeviceSize size = sizeof(VertexUBO);
 
     for (size_t i = 0; i < context.imageCount; i++) {
         createBuffer(size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, uniformBuffers[i], uniformBuffersMemory[i]);
@@ -234,7 +234,7 @@ void Object::createDescriptorSets() {
         VkDescriptorBufferInfo bufferInfo{};
         bufferInfo.buffer = uniformBuffers[i];
         bufferInfo.offset = 0;
-        bufferInfo.range  = sizeof(UniformBufferObject);
+        bufferInfo.range  = sizeof(VertexUBO);
 
         VkWriteDescriptorSet write{};
         write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;

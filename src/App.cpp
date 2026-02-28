@@ -1,11 +1,12 @@
 #include "App.hpp"
 #include "Object.hpp"
 #include "Pipeline.hpp"
-#include "UniformBufferObject.hpp"
+#include "VertexUBO.hpp"
 #include <GLFW/glfw3.h>
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
+#include <glm/ext/matrix_transform.hpp>
 #include <iostream>
 #include <ostream>
 #include <stdexcept>
@@ -49,11 +50,77 @@ void App::initGLFW(const char* appName, int width, int height) {
     window = glfwCreateWindow(width, height, appName, nullptr, nullptr);
     glfwSetWindowUserPointer(window, this);
     glfwSetFramebufferSizeCallback(window, framebufferResizeCallback);
+    glfwSetCursorPosCallback(window, mouseCallback);
+    glfwSetScrollCallback(window, scrollCallback);
+    glfwSetMouseButtonCallback(window, mouseButtonCallback);
 }
 
 void App::framebufferResizeCallback(GLFWwindow* window, int width, int height) {
     App* app = reinterpret_cast<App*>(glfwGetWindowUserPointer(window));
     app->framebufferResized = true;
+}
+
+void App::mouseCallback(GLFWwindow* window, double xpos, double ypos) {
+    App* app = reinterpret_cast<App*>(glfwGetWindowUserPointer(window));
+    app->handleMouseInput(xpos, ypos);
+} 
+
+void App::handleMouseInput(double xpos, double ypos) {
+    if (!rotatingCamera)
+    {
+        firstMouse = true;
+        return;
+    }
+    if (firstMouse) {
+        lastX = (float)xpos;
+        lastY = (float)ypos;
+        firstMouse = false;
+    }
+
+    float xoffset = (float)xpos - lastX;
+    float yoffset = (float)ypos - lastY;
+
+    lastX = (float)xpos;
+    lastY = (float)ypos;
+
+    xoffset *= sensitivity;
+    yoffset *= sensitivity;
+    camera->rotate(xoffset, yoffset);
+}
+
+void App::scrollCallback(GLFWwindow* window, double xoffset, double yoffset) {
+    App* app = reinterpret_cast<App*>(glfwGetWindowUserPointer(window));
+    app->handleScroll(xoffset, yoffset);
+}
+void App::handleScroll(double xoffset, double yoffset) {
+    float newFov = camera->getFov() - (float)yoffset;
+    newFov = glm::clamp(newFov, 20.0f, 90.0f);
+
+    camera->setFov(newFov);
+}
+void App::mouseButtonCallback(GLFWwindow* window,
+                         int button,
+                         int action,
+                         int mods)
+{
+    App* app = reinterpret_cast<App*>(glfwGetWindowUserPointer(window));
+    app->handleMouseButton(button, action);
+}
+
+
+void App::handleMouseButton(int button, int action) {
+    if (button == GLFW_MOUSE_BUTTON_RIGHT)
+    {
+        if (action == GLFW_PRESS)
+        {
+            rotatingCamera = true;
+            
+        }
+        else if (action == GLFW_RELEASE)
+        {
+            rotatingCamera = false;
+        }
+    }
 }
 
 void App::initSurface() {
@@ -593,7 +660,7 @@ App::~App() {
 }
 void App::run() {
 
-    auto starttime = std::chrono::high_resolution_clock::now();
+    // auto starttime = std::chrono::high_resolution_clock::now();
     
     while (!glfwWindowShouldClose(window)) {
 
@@ -627,15 +694,9 @@ void App::run() {
         // 5. Mark image as now in use by this frame
         imagesInFlight[imageIndex] = inFlightFences[currentFrame];
 
-        // uniform test
-        UniformBufferObject ubo{};
-        float dt = std::chrono::duration<float>(std::chrono::high_resolution_clock::now() - starttime).count();
+        // float dt = std::chrono::duration<float>(std::chrono::high_resolution_clock::now() - starttime).count();
 
-        ubo.model = glm::rotate(glm::mat4(1.0f), dt * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-        ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-        ubo.proj = glm::perspective(glm::radians(45.0f), swapchainExtent.width / (float) swapchainExtent.height, 0.1f, 10.0f);
-        ubo.proj[1][1] *= -1;
-        objects[0].setUBO(&ubo, imageIndex);
+        objects[0].update(*camera, imageIndex);
 
         // 6. Submit command buffer
         VkSubmitInfo submit{};
@@ -724,11 +785,13 @@ void App::recreateSwapchain() {
 
     vkDestroySwapchainKHR(device, swapchain, nullptr);
 
+
     createSwapchain();
     createImageViews();
     // createDepthResources();   // if used
     createFramebuffers();
     recordCommands();   // IMPORTANT
+    camera->setAspectRatio((float)swapchainExtent.width/(float)swapchainExtent.height);
 
 }
 
