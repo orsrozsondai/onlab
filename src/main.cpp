@@ -70,7 +70,7 @@ int main() {
     Camera camera(
         {0, 0, 0},
         5.0f,
-        16.0f/9.0f,
+        app.getWindowSize().x/app.getWindowSize().y,
         45.0f
     );
     app.setCamera(&camera);

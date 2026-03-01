@@ -115,13 +115,11 @@ public:
 
     bool framebufferResized;
 
-    void setCamera(Camera* pCamera) {
-        camera = pCamera;
-    }
+    void setCamera(Camera* pCamera);
 
-    Camera* getCamera() const {
-        return camera;
-    }
+    Camera* getCamera() const;
+
+    glm::vec2 getWindowSize() const;
 
     void handleMouseInput(double xpos, double ypos);
     void handleScroll(double xoffset, double yoffset);

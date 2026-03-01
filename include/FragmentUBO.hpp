@@ -7,7 +7,7 @@ struct FragmentUBO {
     float roughness;
 
     glm::vec3 lightPos;
-    glm::vec3 light;
+    glm::vec3 lightColor;
 
     glm::vec3 camPos;
 

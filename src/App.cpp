@@ -1,7 +1,6 @@
 #include "App.hpp"
 #include "Object.hpp"
 #include "Pipeline.hpp"
-#include "VertexUBO.hpp"
 #include <GLFW/glfw3.h>
 #include <chrono>
 #include <cstddef>
@@ -597,15 +596,22 @@ void App::createSyncObjects() {
 }
 
 void App::createDescriptorPool() {
-    VkDescriptorPoolSize poolSize{};
-    poolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    poolSize.descriptorCount = imageCount * 10;
+    std::array<VkDescriptorPoolSize, 2> poolSizes{};
+
+    poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    poolSizes[0].descriptorCount = imageCount;
+    
+    poolSizes[1].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    poolSizes[1].descriptorCount = imageCount;
+    // VkDescriptorPoolSize poolSize{};
+    // poolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    // poolSize.descriptorCount = imageCount * 10;
 
     VkDescriptorPoolCreateInfo poolInfo{};
     poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-    poolInfo.poolSizeCount = 1;
-    poolInfo.pPoolSizes = &poolSize;
-    poolInfo.maxSets = imageCount * 10;
+    poolInfo.poolSizeCount = poolSizes.size();
+    poolInfo.pPoolSizes = poolSizes.data();
+    poolInfo.maxSets = imageCount;
 
     if (vkCreateDescriptorPool(device, &poolInfo, nullptr, &descriptorPool) != VK_SUCCESS) {
         throw std::runtime_error("failed to creater descriptor pool!");
@@ -769,7 +775,6 @@ void App::run() {
 void App::recreateSwapchain() {
     int width = 0, height = 0;
 
-    // Handle minimized window
     while (width == 0 || height == 0) {
         glfwGetFramebufferSize(window, &width, &height);
         glfwWaitEvents();
@@ -790,7 +795,7 @@ void App::recreateSwapchain() {
     createImageViews();
     // createDepthResources();   // if used
     createFramebuffers();
-    recordCommands();   // IMPORTANT
+    recordCommands();
     camera->setAspectRatio((float)swapchainExtent.width/(float)swapchainExtent.height);
 
 }
@@ -822,4 +827,16 @@ VkCommandPool App::getCommandPool() const {
 void App::addObject(const Object& object) {
     objects.push_back(object);
     recordCommands();
+}
+
+void App::setCamera(Camera* pCamera) {
+    camera = pCamera;
+}
+
+Camera* App::getCamera() const {
+    return camera;
+}
+
+glm::vec2 App::getWindowSize() const {
+    return {swapchainExtent.width, swapchainExtent.height};
 }

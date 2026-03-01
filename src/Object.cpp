@@ -1,4 +1,5 @@
 #include "Object.hpp"
+#include "FragmentUBO.hpp"
 #include "Pipeline.hpp"
 #include "RenderContext.hpp"
 #include "Vertex.hpp"
@@ -75,7 +76,7 @@ void Object::draw(VkCommandBuffer cmd, size_t frameIndex) const {
        &descriptorSets[frameIndex],
        0,
        nullptr
-)   ;
+    );
     
     
     vkCmdDraw(cmd, vertices.size(), 1, 0, 0);
@@ -187,25 +188,40 @@ void Object::destroy(){
     vkDestroyBuffer(context.device, vertexBuffer,  nullptr);
     vkFreeMemory(context.device, vertexMemory, nullptr);
     for (size_t i = 0; i < context.imageCount; i++) {
-        vkDestroyBuffer(context.device, uniformBuffers[i], nullptr);
-        vkFreeMemory(context.device, uniformBuffersMemory[i], nullptr);
+        vkDestroyBuffer(context.device, vs_uniformBuffers[i], nullptr);
+        vkFreeMemory(context.device, vs_uniformBuffersMemory[i], nullptr);
+        vkDestroyBuffer(context.device, fs_uniformBuffers[i], nullptr);
+        vkFreeMemory(context.device, fs_uniformBuffersMemory[i], nullptr);
     }
 
 
 }
 
 void Object::createUniformBuffers() {
-    uniformBuffers = std::vector<VkBuffer>(context.imageCount);
-    uniformBuffersMemory = std::vector<VkDeviceMemory>(context.imageCount);
-    uniformBuffersMapped = std::vector<void*>(context.imageCount);
+    vs_uniformBuffers = std::vector<VkBuffer>(context.imageCount);
+    vs_uniformBuffersMemory = std::vector<VkDeviceMemory>(context.imageCount);
+    vs_uniformBuffersMapped = std::vector<void*>(context.imageCount);
 
     VkDeviceSize size = sizeof(VertexUBO);
 
     for (size_t i = 0; i < context.imageCount; i++) {
-        createBuffer(size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, uniformBuffers[i], uniformBuffersMemory[i]);
-        vkMapMemory(context.device, uniformBuffersMemory[i], 0, size, 0, &uniformBuffersMapped[i]);
+        createBuffer(size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, vs_uniformBuffers[i], vs_uniformBuffersMemory[i]);
+        vkMapMemory(context.device, vs_uniformBuffersMemory[i], 0, size, 0, &vs_uniformBuffersMapped[i]);
 
     }
+    fs_uniformBuffers = std::vector<VkBuffer>(context.imageCount);
+    fs_uniformBuffersMemory = std::vector<VkDeviceMemory>(context.imageCount);
+    fs_uniformBuffersMapped = std::vector<void*>(context.imageCount);
+
+    size = sizeof(FragmentUBO);
+
+    for (size_t i = 0; i < context.imageCount; i++) {
+        createBuffer(size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, fs_uniformBuffers[i], fs_uniformBuffersMemory[i]);
+        vkMapMemory(context.device, fs_uniformBuffersMemory[i], 0, size, 0, &fs_uniformBuffersMapped[i]);
+
+    }
+
+
 
 }
 
@@ -231,26 +247,38 @@ void Object::createDescriptorSets() {
 
     for (size_t i = 0; i < context.imageCount; i++)
     {
-        VkDescriptorBufferInfo bufferInfo{};
-        bufferInfo.buffer = uniformBuffers[i];
-        bufferInfo.offset = 0;
-        bufferInfo.range  = sizeof(VertexUBO);
+        VkDescriptorBufferInfo vsBufferInfo{};
+        vsBufferInfo.buffer = vs_uniformBuffers[i];
+        vsBufferInfo.offset = 0;
+        vsBufferInfo.range  = sizeof(VertexUBO);
 
-        VkWriteDescriptorSet write{};
-        write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        write.dstSet = descriptorSets[i];
-        write.dstBinding = 0; 
-        write.dstArrayElement = 0;
-        write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        write.descriptorCount = 1;
-        write.pBufferInfo = &bufferInfo;
+        VkDescriptorBufferInfo fsBufferInfo{};
+        fsBufferInfo.buffer = fs_uniformBuffers[i];
+        fsBufferInfo.offset = 0;
+        fsBufferInfo.range  = sizeof(FragmentUBO);
+
+        std::array<VkWriteDescriptorSet, 2> writes{};
+        // VkWriteDescriptorSet write{};
+        writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        writes[0].dstSet = descriptorSets[i];
+        writes[0].dstBinding = 0; 
+        // writes[0].dstArrayElement = 0;
+        writes[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        writes[0].descriptorCount = 1;
+        writes[0].pBufferInfo = &vsBufferInfo;
+
+        writes[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        writes[1].dstSet = descriptorSets[i];
+        writes[1].dstBinding = 1;
+        writes[1].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        writes[1].descriptorCount = 1;
+        writes[1].pBufferInfo = &fsBufferInfo;
 
         vkUpdateDescriptorSets(
             context.device,
-            1,
-            &write,
-            0,
-            nullptr
+            writes.size(),
+            writes.data(),
+            0, nullptr
         );
     }
 }

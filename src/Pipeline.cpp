@@ -33,8 +33,8 @@ void Pipeline::create() {
     VkPipelineShaderStageCreateInfo stages[] = { vertStage, fragStage };
 
     VkVertexInputBindingDescription binding{};
-    binding.binding = 0;                   // binding index 0
-    binding.stride = sizeof(Vertex);     // size of one vertex
+    binding.binding = 0;
+    binding.stride = sizeof(Vertex); 
     binding.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 
     std::array<VkVertexInputAttributeDescription, 3> attributes{};
@@ -111,16 +111,27 @@ void Pipeline::create() {
     blend.pAttachments = &colorBlend;
 
     // uniforms
-    VkDescriptorSetLayoutBinding uboLayoutBinding{};
-    uboLayoutBinding.binding = 0;
-    uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    uboLayoutBinding.descriptorCount = 1;
-    uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+    VkDescriptorSetLayoutBinding vsUboLayoutBinding{};
+    vsUboLayoutBinding.binding = 0;
+    vsUboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    vsUboLayoutBinding.descriptorCount = 1;
+    vsUboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+    
+    VkDescriptorSetLayoutBinding fsUboLayoutBinding{};
+    fsUboLayoutBinding.binding = 1;
+    fsUboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    fsUboLayoutBinding.descriptorCount = 1;
+    fsUboLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+    std::array<VkDescriptorSetLayoutBinding, 2> bindings = {
+        vsUboLayoutBinding,
+        fsUboLayoutBinding
+    };
 
     VkDescriptorSetLayoutCreateInfo descriptorSetLayoutInfo{};
     descriptorSetLayoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    descriptorSetLayoutInfo.bindingCount = 1;
-    descriptorSetLayoutInfo.pBindings = &uboLayoutBinding;
+    descriptorSetLayoutInfo.bindingCount = bindings.size();
+    descriptorSetLayoutInfo.pBindings = bindings.data();
 
     if (vkCreateDescriptorSetLayout(context.device, &descriptorSetLayoutInfo, nullptr, &descriptorSetLayout) != VK_SUCCESS) {
         throw std::runtime_error("failed to create descriptor set layout!");

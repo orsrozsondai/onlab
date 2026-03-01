@@ -5,6 +5,7 @@
 #include "RenderContext.hpp"
 #include "Vertex.hpp"
 #include "VertexUBO.hpp"
+#include "FragmentUBO.hpp"
 #include <cstddef>
 #include <cstring>
 #include <glm/ext/matrix_transform.hpp>
@@ -24,12 +25,16 @@ private:
     VkBuffer vertexBuffer = VK_NULL_HANDLE;
     VkDeviceMemory vertexMemory = VK_NULL_HANDLE;
 
-    std::vector<VkBuffer> uniformBuffers;
-    std::vector<VkDeviceMemory> uniformBuffersMemory;
-    std::vector<void*> uniformBuffersMapped;
+    std::vector<VkBuffer> vs_uniformBuffers;
+    std::vector<VkDeviceMemory> vs_uniformBuffersMemory;
+    std::vector<void*> vs_uniformBuffersMapped;
+    std::vector<VkBuffer> fs_uniformBuffers;
+    std::vector<VkDeviceMemory> fs_uniformBuffersMemory;
+    std::vector<void*> fs_uniformBuffersMapped;
     std::vector<VkDescriptorSet> descriptorSets;
 
     VertexUBO vertexUBO;
+    FragmentUBO fragmentUBO;
 
     void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory);
 
@@ -56,7 +61,12 @@ private:
         vertexUBO.view = camera.view();
         vertexUBO.proj = camera.proj();
 
-        memcpy(uniformBuffersMapped[index], &vertexUBO, sizeof(VertexUBO));
+        memcpy(vs_uniformBuffersMapped[index], &vertexUBO, sizeof(VertexUBO));
+
+        fragmentUBO.albedo = {1,0,0};
+
+        memcpy(fs_uniformBuffersMapped[index], &fragmentUBO, sizeof(FragmentUBO));
+
     }
 
     void destroy();
