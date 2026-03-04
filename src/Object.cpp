@@ -7,6 +7,7 @@
 #include <cstring>
 #include <stdexcept>
 #include <vector>
+#include <array>
 #include "VertexUBO.hpp"
 #include <vulkan/vulkan_core.h>
 
