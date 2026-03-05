@@ -56,18 +56,7 @@ private:
 
     Pipeline* getPipeline() const;
 
-    void update(const Camera& camera, size_t index) {
-        vertexUBO.model = glm::identity<glm::mat4>();
-        vertexUBO.view = camera.view();
-        vertexUBO.proj = camera.proj();
-
-        memcpy(vs_uniformBuffersMapped[index], &vertexUBO, sizeof(VertexUBO));
-
-        fragmentUBO.albedo = {1,0,0};
-
-        memcpy(fs_uniformBuffersMapped[index], &fragmentUBO, sizeof(FragmentUBO));
-
-    }
+    void update(const Camera& camera, size_t index);
 
     void destroy();
 
