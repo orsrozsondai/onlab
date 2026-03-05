@@ -61,6 +61,9 @@ void App::framebufferResizeCallback(GLFWwindow* window, int width, int height) {
 }
 
 void App::mouseCallback(GLFWwindow* window, double xpos, double ypos) {
+    ImGuiIO& io = ImGui::GetIO();
+    if (io.WantCaptureMouse)
+        return;
     App* app = reinterpret_cast<App*>(glfwGetWindowUserPointer(window));
     app->handleMouseInput(xpos, ypos);
 } 
@@ -89,6 +92,9 @@ void App::handleMouseInput(double xpos, double ypos) {
 }
 
 void App::scrollCallback(GLFWwindow* window, double xoffset, double yoffset) {
+    ImGuiIO& io = ImGui::GetIO();
+    if (io.WantCaptureMouse)
+        return;
     App* app = reinterpret_cast<App*>(glfwGetWindowUserPointer(window));
     app->handleScroll(xoffset, yoffset);
 }
@@ -103,6 +109,9 @@ void App::mouseButtonCallback(GLFWwindow* window,
                          int action,
                          int mods)
 {
+    ImGuiIO& io = ImGui::GetIO();
+    if (io.WantCaptureMouse)
+        return;
     App* app = reinterpret_cast<App*>(glfwGetWindowUserPointer(window));
     app->handleMouseButton(button, action);
 }
