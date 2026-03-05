@@ -56,7 +56,7 @@ private:
 
     Pipeline* getPipeline() const;
 
-    void update(const Camera& camera, size_t index);
+    void update(const Camera& camera);
 
     void destroy();
 

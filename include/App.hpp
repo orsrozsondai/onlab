@@ -3,6 +3,7 @@
 #include "Camera.hpp"
 #include "Object.hpp"
 #include "RenderContext.hpp"
+#include "SettingsWindow.hpp"
 #define GLM_FORCE_RADIANS
 #include <glm/ext/vector_float2.hpp>
 #include <glm/ext/vector_float3.hpp>
@@ -42,6 +43,7 @@ private:
     std::vector<VkFence> inFlightFences;
     std::vector<VkFence> imagesInFlight;
     VkDescriptorPool descriptorPool;
+    SettingsWindow* settingsWindow = nullptr;
 
     size_t currentFrame = 0;
 
@@ -80,6 +82,8 @@ private:
     void createCommandBuffers();
 
     void recordCommands();
+    
+    void recordCommandBuffer(VkCommandBuffer cmd, int imageIndex);
 
     void createSyncObjects();
 
@@ -96,6 +100,8 @@ private:
     static void mouseButtonCallback(GLFWwindow* window, int button, int action, int mods);
 
     void recreateSwapchain();
+
+    void drawFrame();
 
 
 public:
@@ -124,6 +130,8 @@ public:
     void handleMouseInput(double xpos, double ypos);
     void handleScroll(double xoffset, double yoffset);
     void handleMouseButton(int button, int action);
+
+    void addSettingsWindow(SettingsWindow* pSettingsWindow);
 
     ~App();
 };

@@ -83,13 +83,15 @@ void Object::draw(VkCommandBuffer cmd, size_t frameIndex) const {
     vkCmdDraw(cmd, vertices.size(), 1, 0, 0);
 }
 
-void Object::update(const Camera& camera, size_t index) {
+void Object::update(const Camera& camera) {
     vertexUBO.model = glm::identity<glm::mat4>();
     vertexUBO.view = camera.view();
     vertexUBO.proj = camera.proj();
-    memcpy(vs_uniformBuffersMapped[index], &vertexUBO, sizeof(VertexUBO));
     fragmentUBO.albedo = {1,0,0};
-    memcpy(fs_uniformBuffersMapped[index], &fragmentUBO, sizeof(FragmentUBO));
+    for (int index = 0; index < context.imageCount; index++) {
+        memcpy(vs_uniformBuffersMapped[index], &vertexUBO, sizeof(VertexUBO));
+        memcpy(fs_uniformBuffersMapped[index], &fragmentUBO, sizeof(FragmentUBO));
+    }
 }
 
 

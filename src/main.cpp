@@ -2,6 +2,7 @@
 #include "Camera.hpp"
 #include "Object.hpp"
 #include "Pipeline.hpp"
+#include "SettingsWindow.hpp"
 #include <GLFW/glfw3.h>
 #include <exception>
 #include <iostream>
@@ -74,6 +75,10 @@ int main() {
         45.0f
     );
     app.setCamera(&camera);
+
+    SettingsWindow settingsWindow(app.getRenderContext());
+
+    app.addSettingsWindow(&settingsWindow);
 
     try {
         app.run();

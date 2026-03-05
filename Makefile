@@ -1,6 +1,6 @@
 CXX = g++
 CXXFLAGS = -std=c++20 -Wall -Wextra
-INCFLAGS = -Iinclude
+INCFLAGS = -Iinclude -Iimgui
 LDFLAGS = -lvulkan -lglfw -Limgui -limgui
 
 SHADERS = $(patsubst shaders/%.vert, build/shaders/%.vert.spv, $(wildcard shaders/*.vert))

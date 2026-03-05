@@ -1,6 +1,7 @@
 #include "App.hpp"
 #include "Object.hpp"
 #include "Pipeline.hpp"
+#include "SettingsWindow.hpp"
 #include <GLFW/glfw3.h>
 #include <chrono>
 #include <cstddef>
@@ -509,65 +510,52 @@ void App::createCommandBuffers() {
 void App::recordCommands() {
 
     for (size_t i = 0; i < commandBuffers.size(); i++) {
-
-        VkCommandBufferBeginInfo beginInfo{};
-        beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-
-        vkBeginCommandBuffer(commandBuffers[i], &beginInfo);
-
-        VkClearValue clearColor = { bgcolor.x, bgcolor.y, bgcolor.z, 1.0};
-
-        VkRenderPassBeginInfo renderInfo{};
-        renderInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-        renderInfo.renderPass = renderPass;
-        renderInfo.framebuffer = framebuffers[i];
-
-        renderInfo.renderArea.offset = {0, 0};
-        renderInfo.renderArea.extent = swapchainExtent;
-
-        renderInfo.clearValueCount = 1;
-        renderInfo.pClearValues = &clearColor;
-
-        vkCmdBeginRenderPass(
-            commandBuffers[i],
-            &renderInfo,
-            VK_SUBPASS_CONTENTS_INLINE
-        );
-
-        for (Object& object : objects) {
-
-            object.getPipeline()->bind(commandBuffers[i]);
-
-            VkViewport viewport{};
-            viewport.x = 0.0f;
-            viewport.y = 0.0f;
-            viewport.width  = (float)swapchainExtent.width;
-            viewport.height = (float)swapchainExtent.height;
-            viewport.minDepth = 0.0f;
-            viewport.maxDepth = 1.0f;
-
-            vkCmdSetViewport(commandBuffers[i], 0, 1, &viewport);
-
-            VkRect2D scissor{};
-            scissor.offset = { 0, 0 };
-            scissor.extent = swapchainExtent;
-
-            vkCmdSetScissor(commandBuffers[i], 0, 1, &scissor);
-
-            object.draw(commandBuffers[i], i);
-
-        }
-
-
-        // vkCmdDraw(commandBuffers[i], 3, 1, 0, 0);
-
-        vkCmdEndRenderPass(commandBuffers[i]);
-
-        if (vkEndCommandBuffer(commandBuffers[i]) != VK_SUCCESS) {
-            throw std::runtime_error("failed to record command buffer!");
-        }
+        recordCommandBuffer(commandBuffers[i], i);
+        
     }
 
+}
+void App::recordCommandBuffer(VkCommandBuffer cmd, int imageIndex) {
+    VkCommandBufferBeginInfo beginInfo{};
+    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    vkBeginCommandBuffer(cmd, &beginInfo);
+    VkClearValue clearColor = { bgcolor.x, bgcolor.y, bgcolor.z, 1.0};
+    VkRenderPassBeginInfo renderInfo{};
+    renderInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+    renderInfo.renderPass = renderPass;
+    renderInfo.framebuffer = framebuffers[imageIndex];
+    renderInfo.renderArea.offset = {0, 0};
+    renderInfo.renderArea.extent = swapchainExtent;
+    renderInfo.clearValueCount = 1;
+    renderInfo.pClearValues = &clearColor;
+    vkCmdBeginRenderPass(
+        cmd,
+        &renderInfo,
+        VK_SUBPASS_CONTENTS_INLINE
+    );
+    for (Object& object : objects) {
+        object.getPipeline()->bind(cmd);
+        VkViewport viewport{};
+        viewport.x = 0.0f;
+        viewport.y = 0.0f;
+        viewport.width  = (float)swapchainExtent.width;
+        viewport.height = (float)swapchainExtent.height;
+        viewport.minDepth = 0.0f;
+        viewport.maxDepth = 1.0f;
+        vkCmdSetViewport(cmd, 0, 1, &viewport);
+        VkRect2D scissor{};
+        scissor.offset = { 0, 0 };
+        scissor.extent = swapchainExtent;
+        vkCmdSetScissor(cmd, 0, 1, &scissor);
+        object.draw(cmd, imageIndex);
+    }
+    if (settingsWindow != nullptr) {
+        settingsWindow->draw((cmd));
+    }
+    vkCmdEndRenderPass(cmd);
+    if (vkEndCommandBuffer(cmd) != VK_SUCCESS) {
+        throw std::runtime_error("failed to record command buffer!");
+    }
 }
 
 void App::createSyncObjects() {
@@ -670,105 +658,194 @@ void App::run() {
     
     while (!glfwWindowShouldClose(window)) {
 
+
         glfwPollEvents();
 
-        // 1. Wait for the fence of this frame
-        vkWaitForFences(device, 1, &inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
-
-        // 2. Acquire swapchain image
-        uint32_t imageIndex;
-        VkResult result = vkAcquireNextImageKHR(
-            device,
-            swapchain,
-            UINT64_MAX,
-            imageAvailable[currentFrame],
-            VK_NULL_HANDLE,
-            &imageIndex
-        );
-        if (result == VK_ERROR_OUT_OF_DATE_KHR) {
-            recreateSwapchain();
+        for (Object object : objects) {
+            object.update(*camera);
         }
 
-        // 3. If the image is already in flight, wait for it
-        if (imagesInFlight[imageIndex] != VK_NULL_HANDLE) {
-            vkWaitForFences(device, 1, &imagesInFlight[imageIndex], VK_TRUE, UINT64_MAX);
+        // update UI
+        if (settingsWindow != nullptr) {
+            settingsWindow->update();
         }
 
-        // 4. Reset the fence **before** using it
-        vkResetFences(device, 1, &inFlightFences[currentFrame]);
-
-        // 5. Mark image as now in use by this frame
-        imagesInFlight[imageIndex] = inFlightFences[currentFrame];
-
-        // float dt = std::chrono::duration<float>(std::chrono::high_resolution_clock::now() - starttime).count();
-
-        objects[0].update(*camera, imageIndex);
-
-        // 6. Submit command buffer
-        VkSubmitInfo submit{};
-        submit.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-
-        VkSemaphore waitSemaphores[] = { imageAvailable[currentFrame] };
-        VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
-        submit.waitSemaphoreCount = 1;
-        submit.pWaitSemaphores = waitSemaphores;
-        submit.pWaitDstStageMask = waitStages;
-
-        submit.commandBufferCount = 1;
-        submit.pCommandBuffers = &commandBuffers[imageIndex];
-
-        VkSemaphore signalSemaphores[] = { renderFinished[currentFrame] };
-        submit.signalSemaphoreCount = 1;
-        submit.pSignalSemaphores = signalSemaphores;
-
-        if (vkQueueSubmit(graphicsQueue, 1, &submit, inFlightFences[currentFrame]) != VK_SUCCESS) {
-            throw std::runtime_error("failed to submit draw command buffer!");
-        }
-
-        // 7. Present
-        VkPresentInfoKHR present{};
-        present.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-        present.waitSemaphoreCount = 1;
-        present.pWaitSemaphores = signalSemaphores;
-        present.swapchainCount = 1;
-        present.pSwapchains = &swapchain;
-        present.pImageIndices = &imageIndex;
-
-        result = vkQueuePresentKHR(presentQueue, &present);
-        if (result == VK_ERROR_OUT_OF_DATE_KHR ||
-            result == VK_SUBOPTIMAL_KHR ||
-            framebufferResized)
-        {
-            framebufferResized = false;
-            recreateSwapchain();
-        }
-        else if (result != VK_SUCCESS) {
-            throw std::runtime_error("failed to present swapchain image!");
-        }
-
-        // 8. Advance frame index
-        currentFrame = (currentFrame + 1) % imageCount;
-
-
-        // print framerate
-        static auto lastTime = std::chrono::high_resolution_clock::now();
-        static int frameCount = 0;
-            
-        frameCount++;
-            
-        auto now = std::chrono::high_resolution_clock::now();
-        float elapsed =
-            std::chrono::duration<float>(now - lastTime).count();
-            
-        if (elapsed >= 1.0f) {
-            float fps = frameCount / elapsed;
-            std::cout << "FPS: " << fps << std::endl;
-        
-            frameCount = 0;
-            lastTime = now;
-        }
-        
+        // render one frame
+        drawFrame();
     }
+
+    // vkDeviceWaitIdle(context.device);
+
+    //     // 1. Wait for the fence of this frame
+    //     vkWaitForFences(device, 1, &inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
+
+    //     // 2. Acquire swapchain image
+    //     uint32_t imageIndex;
+    //     VkResult result = vkAcquireNextImageKHR(
+    //         device,
+    //         swapchain,
+    //         UINT64_MAX,
+    //         imageAvailable[currentFrame],
+    //         VK_NULL_HANDLE,
+    //         &imageIndex
+    //     );
+    //     if (result == VK_ERROR_OUT_OF_DATE_KHR) {
+    //         recreateSwapchain();
+    //     }
+
+    //     // 3. If the image is already in flight, wait for it
+    //     if (imagesInFlight[imageIndex] != VK_NULL_HANDLE) {
+    //         vkWaitForFences(device, 1, &imagesInFlight[imageIndex], VK_TRUE, UINT64_MAX);
+    //     }
+
+    //     // 4. Reset the fence **before** using it
+    //     vkResetFences(device, 1, &inFlightFences[currentFrame]);
+
+    //     // 5. Mark image as now in use by this frame
+    //     imagesInFlight[imageIndex] = inFlightFences[currentFrame];
+
+    //     // float dt = std::chrono::duration<float>(std::chrono::high_resolution_clock::now() - starttime).count();
+
+    //     objects[0].update(*camera, imageIndex);
+    //     settingsWindow->update();
+    //     recordCommandBuffer(commandBuffers[currentFrame], imageIndex);
+
+    //     // 6. Submit command buffer
+    //     VkSubmitInfo submit{};
+    //     submit.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+
+    //     VkSemaphore waitSemaphores[] = { imageAvailable[currentFrame] };
+    //     VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+    //     submit.waitSemaphoreCount = 1;
+    //     submit.pWaitSemaphores = waitSemaphores;
+    //     submit.pWaitDstStageMask = waitStages;
+
+    //     submit.commandBufferCount = 1;
+    //     submit.pCommandBuffers = &commandBuffers[imageIndex];
+
+    //     VkSemaphore signalSemaphores[] = { renderFinished[currentFrame] };
+    //     submit.signalSemaphoreCount = 1;
+    //     submit.pSignalSemaphores = signalSemaphores;
+
+    //     if (vkQueueSubmit(graphicsQueue, 1, &submit, inFlightFences[currentFrame]) != VK_SUCCESS) {
+    //         throw std::runtime_error("failed to submit draw command buffer!");
+    //     }
+
+    //     // 7. Present
+    //     VkPresentInfoKHR present{};
+    //     present.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+    //     present.waitSemaphoreCount = 1;
+    //     present.pWaitSemaphores = signalSemaphores;
+    //     present.swapchainCount = 1;
+    //     present.pSwapchains = &swapchain;
+    //     present.pImageIndices = &imageIndex;
+
+    //     result = vkQueuePresentKHR(presentQueue, &present);
+    //     if (result == VK_ERROR_OUT_OF_DATE_KHR ||
+    //         result == VK_SUBOPTIMAL_KHR ||
+    //         framebufferResized)
+    //     {
+    //         framebufferResized = false;
+    //         recreateSwapchain();
+    //     }
+    //     else if (result != VK_SUCCESS) {
+    //         throw std::runtime_error("failed to present swapchain image!");
+    //     }
+
+    //     // 8. Advance frame index
+    //     currentFrame = (currentFrame + 1) % imageCount;
+
+
+    //     // print framerate
+    //     static auto lastTime = std::chrono::high_resolution_clock::now();
+    //     static int frameCount = 0;
+            
+    //     frameCount++;
+            
+    //     auto now = std::chrono::high_resolution_clock::now();
+    //     float elapsed =
+    //         std::chrono::duration<float>(now - lastTime).count();
+            
+    //     if (elapsed >= 1.0f) {
+    //         float fps = frameCount / elapsed;
+    //         std::cout << "FPS: " << fps << std::endl;
+        
+    //         frameCount = 0;
+    //         lastTime = now;
+    //     }
+        
+    
+
+}
+
+void App::drawFrame() {
+    VkResult result;
+
+    vkWaitForFences(device, 1, &inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
+
+    uint32_t imageIndex;
+    result = vkAcquireNextImageKHR(
+        device,
+        swapchain,
+        UINT64_MAX,
+        imageAvailable[currentFrame],
+        VK_NULL_HANDLE,
+        &imageIndex
+    );
+
+    if (result == VK_ERROR_OUT_OF_DATE_KHR) {
+        recreateSwapchain();
+        return;
+    }
+
+    vkResetFences(device, 1, &inFlightFences[currentFrame]);
+
+    vkResetCommandBuffer(commandBuffers[currentFrame], 0);
+
+    recordCommandBuffer(commandBuffers[currentFrame], imageIndex);
+
+    VkSubmitInfo submitInfo{};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+
+    VkSemaphore waitSemaphores[] = { imageAvailable[currentFrame] };
+    VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+
+    submitInfo.waitSemaphoreCount = 1;
+    submitInfo.pWaitSemaphores = waitSemaphores;
+    submitInfo.pWaitDstStageMask = waitStages;
+
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &commandBuffers[currentFrame];
+
+    VkSemaphore signalSemaphores[] = { renderFinished[currentFrame] };
+
+    submitInfo.signalSemaphoreCount = 1;
+    submitInfo.pSignalSemaphores = signalSemaphores;
+
+    vkQueueSubmit(
+        graphicsQueue,
+        1,
+        &submitInfo,
+        inFlightFences[currentFrame]
+    );
+
+    VkPresentInfoKHR presentInfo{};
+    presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+
+    presentInfo.waitSemaphoreCount = 1;
+    presentInfo.pWaitSemaphores = signalSemaphores;
+
+    presentInfo.swapchainCount = 1;
+    presentInfo.pSwapchains = &swapchain;
+    presentInfo.pImageIndices = &imageIndex;
+
+    result = vkQueuePresentKHR(presentQueue, &presentInfo);
+    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || framebufferResized) {
+        framebufferResized = false;
+        recreateSwapchain();
+    }
+
+    currentFrame = (currentFrame + 1) % imageCount;
 
 }
 
@@ -802,6 +879,8 @@ void App::recreateSwapchain() {
 
 RenderContext App::getRenderContext() const {
     return RenderContext{
+        instance,
+        window,
         device,
         physicalDevice,
         renderPass,
@@ -839,4 +918,8 @@ Camera* App::getCamera() const {
 
 glm::vec2 App::getWindowSize() const {
     return {swapchainExtent.width, swapchainExtent.height};
+}
+
+void App::addSettingsWindow(SettingsWindow* pSettingsWindow) {
+    settingsWindow = pSettingsWindow;
 }
