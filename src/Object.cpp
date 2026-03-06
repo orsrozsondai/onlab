@@ -5,6 +5,8 @@
 #include "Vertex.hpp"
 #include <cstdint>
 #include <cstring>
+#include <iostream>
+#include <ostream>
 #include <stdexcept>
 #include <vector>
 #include <array>
@@ -16,6 +18,7 @@ Object::Object(const RenderContext& context, Pipeline* pipeline, const std::vect
     uploadVertices();
     createUniformBuffers();
     createDescriptorSets();
+    fragmentUBO.albedo = {1,0,0};
 }
 
 void Object::createVertexBuffer() {
@@ -87,11 +90,12 @@ void Object::update(const Camera& camera) {
     vertexUBO.model = glm::identity<glm::mat4>();
     vertexUBO.view = camera.view();
     vertexUBO.proj = camera.proj();
-    fragmentUBO.albedo = {1,0,0};
+    std::cout << fragmentUBO.albedo.x << std::endl;
     for (int index = 0; index < context.imageCount; index++) {
         memcpy(vs_uniformBuffersMapped[index], &vertexUBO, sizeof(VertexUBO));
         memcpy(fs_uniformBuffersMapped[index], &fragmentUBO, sizeof(FragmentUBO));
     }
+    std::cout << "ubo address in object::update: " << &fragmentUBO << std::endl;
 }
 
 
@@ -201,13 +205,16 @@ void Object::destroy(){
     vkDestroyBuffer(context.device, vertexBuffer,  nullptr);
     vkFreeMemory(context.device, vertexMemory, nullptr);
     for (size_t i = 0; i < context.imageCount; i++) {
-        vkDestroyBuffer(context.device, vs_uniformBuffers[i], nullptr);
-        vkFreeMemory(context.device, vs_uniformBuffersMemory[i], nullptr);
-        vkDestroyBuffer(context.device, fs_uniformBuffers[i], nullptr);
-        vkFreeMemory(context.device, fs_uniformBuffersMemory[i], nullptr);
+        std::cout << "obj.destroy " << i << " ptr: "<< vs_uniformBuffers[i] << std::endl;
+        if (vs_uniformBuffers[i] != VK_NULL_HANDLE) vkDestroyBuffer(context.device, vs_uniformBuffers[i], nullptr);
+        vs_uniformBuffers[i] = VK_NULL_HANDLE;
+        if (vs_uniformBuffersMemory[i] != VK_NULL_HANDLE) vkFreeMemory(context.device, vs_uniformBuffersMemory[i], nullptr);
+        vs_uniformBuffersMemory[i] = VK_NULL_HANDLE;
+        if (fs_uniformBuffers[i] != VK_NULL_HANDLE) vkDestroyBuffer(context.device, fs_uniformBuffers[i], nullptr);
+        fs_uniformBuffers[i] = VK_NULL_HANDLE;
+        if (fs_uniformBuffersMemory[i] != VK_NULL_HANDLE) vkFreeMemory(context.device, fs_uniformBuffersMemory[i], nullptr);
+        fs_uniformBuffersMemory[i] = VK_NULL_HANDLE;
     }
-
-
 }
 
 void Object::createUniformBuffers() {
@@ -236,6 +243,11 @@ void Object::createUniformBuffers() {
 
 
 
+}
+
+FragmentUBO* Object::ubo() {
+    std::cout << "ubo address in object: " << &fragmentUBO << std::endl;
+    return &fragmentUBO;
 }
 
 void Object::createDescriptorSets() {

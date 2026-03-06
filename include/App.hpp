@@ -4,6 +4,7 @@
 #include "Object.hpp"
 #include "RenderContext.hpp"
 #include "SettingsWindow.hpp"
+#include <memory>
 #define GLM_FORCE_RADIANS
 #include <glm/ext/vector_float2.hpp>
 #include <glm/ext/vector_float3.hpp>
@@ -47,7 +48,7 @@ private:
 
     size_t currentFrame = 0;
 
-    std::vector<Object> objects;
+    std::vector<std::unique_ptr<Object>> objects;
 
     glm::vec3 bgcolor =  { 0.05f, 0.05f, 0.1f };
 
@@ -117,7 +118,7 @@ public:
 
     VkCommandPool getCommandPool() const;
 
-    void addObject(const Object& object);
+    Object* addObject(std::unique_ptr<Object> obj);
 
     bool framebufferResized;
 

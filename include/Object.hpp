@@ -58,6 +58,14 @@ private:
 
     void update(const Camera& camera);
 
+    FragmentUBO* ubo();
+
+    Object(const Object&) = delete;
+    Object& operator=(const Object&) = delete;
+
+    Object(Object&&) = default;
+    Object& operator=(Object&&) = default;
+
     void destroy();
 
 };

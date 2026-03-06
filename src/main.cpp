@@ -64,9 +64,9 @@ int main() {
         {{-0.5f,-0.5f, 0.5f}, {0,-1,0}, {1,0,0}},
     };
 
-    Object o(app.getRenderContext(), &p, cube);
+    auto obj = std::make_unique<Object>(app.getRenderContext(), &p, cube);
+    Object* ptr = app.addObject(std::move(obj));
     
-    app.addObject(o);
 
     Camera camera(
         {0, 0, 0},
@@ -78,7 +78,10 @@ int main() {
 
     SettingsWindow settingsWindow(app.getRenderContext());
 
+    settingsWindow.setControlledObject(ptr);
+
     app.addSettingsWindow(&settingsWindow);
+    // return 0;
 
     try {
         app.run();
