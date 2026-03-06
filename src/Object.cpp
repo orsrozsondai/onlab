@@ -18,7 +18,6 @@ Object::Object(const RenderContext& context, Pipeline* pipeline, const std::vect
     uploadVertices();
     createUniformBuffers();
     createDescriptorSets();
-    fragmentUBO.albedo = {1,0,0};
 }
 
 void Object::createVertexBuffer() {
@@ -90,12 +89,10 @@ void Object::update(const Camera& camera) {
     vertexUBO.model = glm::identity<glm::mat4>();
     vertexUBO.view = camera.view();
     vertexUBO.proj = camera.proj();
-    std::cout << fragmentUBO.albedo.x << std::endl;
     for (int index = 0; index < context.imageCount; index++) {
         memcpy(vs_uniformBuffersMapped[index], &vertexUBO, sizeof(VertexUBO));
         memcpy(fs_uniformBuffersMapped[index], &fragmentUBO, sizeof(FragmentUBO));
     }
-    std::cout << "ubo address in object::update: " << &fragmentUBO << std::endl;
 }
 
 
@@ -205,7 +202,6 @@ void Object::destroy(){
     vkDestroyBuffer(context.device, vertexBuffer,  nullptr);
     vkFreeMemory(context.device, vertexMemory, nullptr);
     for (size_t i = 0; i < context.imageCount; i++) {
-        std::cout << "obj.destroy " << i << " ptr: "<< vs_uniformBuffers[i] << std::endl;
         if (vs_uniformBuffers[i] != VK_NULL_HANDLE) vkDestroyBuffer(context.device, vs_uniformBuffers[i], nullptr);
         vs_uniformBuffers[i] = VK_NULL_HANDLE;
         if (vs_uniformBuffersMemory[i] != VK_NULL_HANDLE) vkFreeMemory(context.device, vs_uniformBuffersMemory[i], nullptr);
@@ -240,13 +236,9 @@ void Object::createUniformBuffers() {
         vkMapMemory(context.device, fs_uniformBuffersMemory[i], 0, size, 0, &fs_uniformBuffersMapped[i]);
 
     }
-
-
-
 }
 
 FragmentUBO* Object::ubo() {
-    std::cout << "ubo address in object: " << &fragmentUBO << std::endl;
     return &fragmentUBO;
 }
 

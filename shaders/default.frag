@@ -8,12 +8,12 @@ layout(set = 0, binding = 1) uniform UniformBufferObject {
     float metallic;
     float roughness;
 
-    vec3 lightPos;
+    vec4 lightPos;
     vec3 lightColor;
 
     vec3 camPos;
 } ubo;
 
 void main() {
-    outColor = vec4(ubo.albedo, 1.0);
+    outColor = vec4(ubo.albedo, 1);
 }

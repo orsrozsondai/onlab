@@ -126,11 +126,12 @@ public:
 
     Camera* getCamera() const;
 
-    glm::vec2 getWindowSize() const;
+    // glm::vec2 getWindowSize() const;
 
     void handleMouseInput(double xpos, double ypos);
     void handleScroll(double xoffset, double yoffset);
     void handleMouseButton(int button, int action);
+    void handleKey(int key, int scancode, int action, int mods);
 
     void addSettingsWindow(SettingsWindow* pSettingsWindow);
 

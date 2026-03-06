@@ -1,8 +1,16 @@
 #include "SettingsWindow.hpp"
+#include "FragmentUBO.hpp"
+#include "Object.hpp"
 #include "imgui.h"
 #include "RenderContext.hpp"
+#include <GLFW/glfw3.h>
+#include <cstddef>
 #include <glm/ext/vector_float3.hpp>
+#include <glm/geometric.hpp>
 #include <iostream>
+#include <ostream>
+#include <glm/glm.hpp>
+#include <glm/gtc/type_ptr.hpp>
 #include <stdexcept>
 #include <vulkan/vulkan_core.h>
 
@@ -17,8 +25,8 @@ void SettingsWindow::init() {
     io = &ImGui::GetIO();
     io->ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
     io->ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
+    io->IniFilename = nullptr;
 
-    ImGui::StyleColorsDark();
 
     ImGui_ImplGlfw_InitForVulkan(context.window, true);
 
@@ -71,10 +79,11 @@ void SettingsWindow::init() {
     // endSingleTimeCommands(cmd);
 
     // ImGui_ImplVulkan_DestroyFontUploadObjects();
-    std::cout << "imgui init success" << std::endl;
+    // std::cout << "imgui init success" << std::endl;
 }
 
 void SettingsWindow::draw(VkCommandBuffer cmd) {
+    if (!visible) return;
     ImGui_ImplVulkan_RenderDrawData(
         ImGui::GetDrawData(),
         cmd
@@ -82,36 +91,50 @@ void SettingsWindow::draw(VkCommandBuffer cmd) {
 }
 
 void SettingsWindow::update() {
+    if (!visible) return;
 
     ImGui_ImplVulkan_NewFrame();
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
+    int width, height;
+    glfwGetWindowSize(context.window, &width, &height);
+    ImGui::SetNextWindowSize({300, (float)height});
+    ImGui::SetNextWindowPos({(float)width-300, 0});
 
-    static float f = 0.0f;
-    static int counter = 0;
-    static bool show_demo_window = false;
-    static ImVec4 clear_color = ImVec4(0.45f,0.55f,0.60f,1.00f);
+    ImGui::Begin("Settings",nullptr,ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoSavedSettings);
 
-    ImGui::Begin("Hello, world!");
+    FragmentUBO* ubo = object->ubo();
+    
+    ImGui::Text("Material:");
 
-    ImGui::Text("This is some useful text.");
-    ImGui::Checkbox("Demo Window", &show_demo_window);
-    ImGui::SliderFloat("float", &f, 0.0f, 1.0f);
-    ImGui::ColorEdit3("clear color", (float*)&clear_color);
+    ImGui::ColorEdit3("albedo", glm::value_ptr(ubo->albedo));
+    ImGui::SliderFloat("roughness", &ubo->roughness, 0.0f, 1.0f);
+    ImGui::SliderFloat("metallic", &ubo->metallic, 0.0f, 1.0f);
+    
 
-    if (ImGui::Button("Button"))
-        counter++;
+    ImGui::Text("Light:");
 
-    ImGui::SameLine();
-    ImGui::Text("counter = %d", counter);
+    const char* lightTypes[] = {"directional", "positional"};
+    int type = (int)ubo->lightPos.w;
+    if (ImGui::Combo("Type", &type, lightTypes, IM_ARRAYSIZE(lightTypes))) {
+        ubo->lightPos.w = (float)type;
+    }
+    ImGui::ColorEdit3("color", glm::value_ptr(ubo->lightColor));
+    ImGui::DragFloat3(type?"position":"direction", glm::value_ptr(ubo->lightPos), type?1.0f:0.01f, 0.01f, type?100.0f:1.0f, type?"%.0f":"%.2f");
+    
+    float textHeight = ImGui::GetTextLineHeightWithSpacing();
 
-    ImGuiIO& io = ImGui::GetIO();
-    ImGui::Text("Application average %.3f ms/frame (%.1f FPS)",
-        1000.0f / io.Framerate, io.Framerate);
+    ImGui::SetCursorPosY(height - textHeight - ImGui::GetStyle().WindowPadding.y);
+
+    ImGui::Text("Window size: %dx%d, FPS: %6.2f",width, height, io->Framerate);
 
     ImGui::End();
 
     ImGui::Render();
+}
+
+void SettingsWindow::setControlledObject(Object* pObject) {
+    object = pObject;
 }
 
 SettingsWindow::~SettingsWindow() {
@@ -120,4 +143,8 @@ SettingsWindow::~SettingsWindow() {
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
     vkDestroyDescriptorPool(context.device, descriptorPool, nullptr);
+}
+
+void SettingsWindow::toggle() {
+    visible = !visible;
 }

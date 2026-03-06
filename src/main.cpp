@@ -67,11 +67,13 @@ int main() {
     auto obj = std::make_unique<Object>(app.getRenderContext(), &p, cube);
     Object* ptr = app.addObject(std::move(obj));
     
+    int width, height;
+    glfwGetWindowSize(app.getRenderContext().window, &width, &height);
 
     Camera camera(
         {0, 0, 0},
         5.0f,
-        app.getWindowSize().x/app.getWindowSize().y,
+        (float)width/height,
         45.0f
     );
     app.setCamera(&camera);

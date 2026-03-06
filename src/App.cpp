@@ -2,6 +2,7 @@
 #include "Object.hpp"
 #include "Pipeline.hpp"
 #include "SettingsWindow.hpp"
+#include "backends/imgui_impl_glfw.h"
 #include <GLFW/glfw3.h>
 #include <chrono>
 #include <cstddef>
@@ -54,11 +55,21 @@ void App::initGLFW(const char* appName, int width, int height) {
     glfwSetCursorPosCallback(window, mouseCallback);
     glfwSetScrollCallback(window, scrollCallback);
     glfwSetMouseButtonCallback(window, mouseButtonCallback);
+    glfwSetKeyCallback(window, keyCallback);
 }
 
 void App::framebufferResizeCallback(GLFWwindow* window, int width, int height) {
     App* app = reinterpret_cast<App*>(glfwGetWindowUserPointer(window));
     app->framebufferResized = true;
+}
+
+void App::keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods) {
+    App* app = reinterpret_cast<App*>(glfwGetWindowUserPointer(window));
+    app->handleKey(key, scancode, action, mods);
+}
+
+void App::handleKey(int key, int scancode, int action, int mods) {
+    if (key == GLFW_KEY_M && action == GLFW_PRESS) settingsWindow->toggle();
 }
 
 void App::mouseCallback(GLFWwindow* window, double xpos, double ypos) {
@@ -632,7 +643,6 @@ App::App(const char* appName, const glm::vec2& windowSize) : objects(std::vector
     createDescriptorPool();
 }
 App::~App() {
-    std::cout <<"destroy app. objc = " << objects.size() << std::endl;
     vkDeviceWaitIdle(device);
     vkDestroyDescriptorPool(device, descriptorPool, nullptr);
     for (const auto& object : objects) {
@@ -846,9 +856,9 @@ Camera* App::getCamera() const {
     return camera;
 }
 
-glm::vec2 App::getWindowSize() const {
-    return {swapchainExtent.width, swapchainExtent.height};
-}
+// glm::vec2 App::getWindowSize() const {
+//     return {swapchainExtent.width, swapchainExtent.height};
+// }
 
 void App::addSettingsWindow(SettingsWindow* pSettingsWindow) {
     settingsWindow = pSettingsWindow;
