@@ -1,4 +1,5 @@
 #include "MeshLoader.hpp"
+#include <cstddef>
 #define TINYOBJLOADER_IMPLEMENTATION
 #include "Vertex.hpp"
 #include "tiny_obj_loader.h"
@@ -21,15 +22,15 @@ bool MeshLoader::loadOBJ() {
     bool success = tinyobj::LoadObj(
         &attrib,
         &shapes,
-        &materials,
+        nullptr,
         &err,
         path.c_str(),
         nullptr,
         true
     );
 
-    if (!err.empty()) throw std::runtime_error(err);
-    //std::cerr << err << std::endl;
+    // if (!err.empty()) throw std::runtime_error(err);
+    std::cerr << err << std::endl;
 
     if (!success)
         return false;
