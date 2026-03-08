@@ -88,6 +88,7 @@ int main() {
 
     auto obj = std::make_unique<Object>(app.getRenderContext(), &p, skullMesh.getVertices(), skullMesh.getIndices());
     Object* ptr = app.addObject(std::move(obj));
+    ptr->setScale(0.1);
     
     int width, height;
     glfwGetWindowSize(app.getRenderContext().window, &width, &height);

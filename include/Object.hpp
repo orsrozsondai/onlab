@@ -40,6 +40,9 @@ private:
     VertexUBO vertexUBO;
     FragmentUBO fragmentUBO;
 
+    glm::vec3 position = {0,0,0};
+    float scale = 1.0;
+
     void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory);
 
     void copyBuffer(VkDevice device, VkCommandPool commandPool, VkQueue graphicsQueue, VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
@@ -56,6 +59,8 @@ private:
 
     void createDescriptorSets();
 
+    void updateModelMat();
+
     public:
 
     Object(const RenderContext& context, Pipeline* pipeline, const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices);
@@ -68,6 +73,8 @@ private:
 
     FragmentUBO* ubo();
 
+    void setScale(float scale);
+    void setPosition(const glm::vec3& pos);
 
     void destroy();
 

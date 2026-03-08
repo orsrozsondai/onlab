@@ -5,6 +5,9 @@
 #include "Vertex.hpp"
 #include <cstdint>
 #include <cstring>
+#include <glm/ext/matrix_float4x4.hpp>
+#include <glm/ext/matrix_transform.hpp>
+#include <glm/ext/vector_float4.hpp>
 #include <iostream>
 #include <ostream>
 #include <stdexcept>
@@ -21,6 +24,7 @@ Object::Object(const RenderContext& context, Pipeline* pipeline, const std::vect
     uploadIndices();
     createUniformBuffers();
     createDescriptorSets();
+    updateModelMat();
 }
 
 void Object::createVertexBuffer() {
@@ -137,7 +141,6 @@ void Object::draw(VkCommandBuffer cmd, size_t frameIndex) const {
 }
 
 void Object::update(const Camera& camera) {
-    vertexUBO.model = glm::identity<glm::mat4>();
     vertexUBO.view = camera.view();
     vertexUBO.proj = camera.proj();
     for (int index = 0; index < context.imageCount; index++) {
@@ -351,4 +354,18 @@ void Object::createDescriptorSets() {
             0, nullptr
         );
     }
+}
+
+void Object::setScale(float scale) {
+    this->scale = scale;
+    updateModelMat();
+}
+void Object::setPosition(const glm::vec3& pos) {
+    position = pos;
+    updateModelMat();
+}
+void Object::updateModelMat() {
+    vertexUBO.model = glm::mat4(1.0f);
+    vertexUBO.model = glm::translate(vertexUBO.model, position);
+    vertexUBO.model = glm::scale(vertexUBO.model, glm::vec3(scale));
 }
