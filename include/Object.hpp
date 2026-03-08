@@ -7,6 +7,7 @@
 #include "VertexUBO.hpp"
 #include "FragmentUBO.hpp"
 #include <cstddef>
+#include <cstdint>
 #include <cstring>
 #include <glm/ext/matrix_transform.hpp>
 #include <glm/ext/vector_float3.hpp>
@@ -21,9 +22,12 @@ private:
     Pipeline* pipeline;
     RenderContext context;
     std::vector<Vertex> vertices;
+    std::vector<uint32_t> indices;
 
     VkBuffer vertexBuffer = VK_NULL_HANDLE;
     VkDeviceMemory vertexMemory = VK_NULL_HANDLE;
+    VkBuffer indexBuffer = VK_NULL_HANDLE;
+    VkDeviceMemory indexMemory = VK_NULL_HANDLE;
 
     std::vector<VkBuffer> vs_uniformBuffers;
     std::vector<VkDeviceMemory> vs_uniformBuffersMemory;
@@ -44,13 +48,17 @@ private:
 
     void uploadVertices();
 
+    void createIndexBuffer();
+
+    void uploadIndices();
+
     void createUniformBuffers();
 
     void createDescriptorSets();
 
     public:
 
-    Object(const RenderContext& context, Pipeline* pipeline, const std::vector<Vertex>& vertices);
+    Object(const RenderContext& context, Pipeline* pipeline, const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices);
 
     void draw(VkCommandBuffer cmd, size_t frameIndex) const;
 

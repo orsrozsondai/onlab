@@ -13,9 +13,12 @@
 #include "VertexUBO.hpp"
 #include <vulkan/vulkan_core.h>
 
-Object::Object(const RenderContext& context, Pipeline* pipeline, const std::vector<Vertex>& vertices) : pipeline(pipeline), context(context), vertices(vertices){
+Object::Object(const RenderContext& context, Pipeline* pipeline, const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices) 
+        : pipeline(pipeline), context(context), vertices(vertices), indices(indices) {
     createVertexBuffer();
     uploadVertices();
+    createIndexBuffer();
+    uploadIndices();
     createUniformBuffers();
     createDescriptorSets();
 }
@@ -29,6 +32,18 @@ void Object::createVertexBuffer() {
         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
         vertexBuffer,
         vertexMemory
+    );
+}
+
+void Object::createIndexBuffer() {
+    VkDeviceSize size = sizeof(indices[0]) * indices.size();
+    createBuffer(
+        size,
+        VK_BUFFER_USAGE_TRANSFER_DST_BIT |
+        VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+        indexBuffer,
+        indexMemory
     );
 }
 
@@ -66,6 +81,40 @@ void Object::uploadVertices() {
 
 }
 
+void Object::uploadIndices() {
+    VkDeviceSize size = sizeof(indices[0]) * indices.size();
+
+    VkBuffer stagingBuffer;
+    VkDeviceMemory stagingMemory;
+
+    createBuffer(
+        size,
+        VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+        VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+        stagingBuffer,
+        stagingMemory
+    );
+    
+    void* data;
+    vkMapMemory(context.device, stagingMemory, 0, size, 0, &data);
+    memcpy(data, indices.data(), (size_t)size);
+    vkUnmapMemory(context.device, stagingMemory);
+
+    copyBuffer(
+        context.device,
+        context.commandPool,
+        context.graphicsQueue,
+        stagingBuffer,
+        indexBuffer,
+        size
+    );
+
+    vkDestroyBuffer(context.device, stagingBuffer, nullptr);
+    vkFreeMemory(context.device, stagingMemory, nullptr);
+
+}
+
 void Object::draw(VkCommandBuffer cmd, size_t frameIndex) const {
     VkBuffer buffers[] = { vertexBuffer };
     VkDeviceSize offsets[] = { 0 };
@@ -81,8 +130,10 @@ void Object::draw(VkCommandBuffer cmd, size_t frameIndex) const {
        nullptr
     );
     
+    vkCmdBindIndexBuffer(cmd, indexBuffer, 0, VK_INDEX_TYPE_UINT32);
     
-    vkCmdDraw(cmd, vertices.size(), 1, 0, 0);
+    // vkCmdDraw(cmd, vertices.size(), 1, 0, 0);
+    vkCmdDrawIndexed(cmd, static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
 }
 
 void Object::update(const Camera& camera) {
@@ -201,6 +252,8 @@ Pipeline* Object::getPipeline() const {
 void Object::destroy(){
     vkDestroyBuffer(context.device, vertexBuffer,  nullptr);
     vkFreeMemory(context.device, vertexMemory, nullptr);
+    vkDestroyBuffer(context.device, indexBuffer, nullptr);
+    vkFreeMemory(context.device, indexMemory, nullptr);
     for (size_t i = 0; i < context.imageCount; i++) {
         if (vs_uniformBuffers[i] != VK_NULL_HANDLE) vkDestroyBuffer(context.device, vs_uniformBuffers[i], nullptr);
         vs_uniformBuffers[i] = VK_NULL_HANDLE;
