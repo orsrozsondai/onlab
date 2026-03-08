@@ -3,6 +3,7 @@
 #include "Camera.hpp"
 #include "Object.hpp"
 #include "RenderContext.hpp"
+#include "Scene.hpp"
 #include "SettingsWindow.hpp"
 #include <memory>
 #define GLM_FORCE_RADIANS
@@ -36,6 +37,9 @@ private:
     VkExtent2D swapchainExtent;
     std::vector<VkImageView> imageViews;
     VkRenderPass renderPass;
+    std::vector<VkImage> depthImages;
+    std::vector<VkDeviceMemory> depthImageMemories;
+    std::vector<VkImageView> depthImageViews;
     std::vector<VkFramebuffer> framebuffers;
     VkCommandPool commandPool;
     std::vector<VkCommandBuffer> commandBuffers;
@@ -45,6 +49,7 @@ private:
     std::vector<VkFence> imagesInFlight;
     VkDescriptorPool descriptorPool;
     SettingsWindow* settingsWindow = nullptr;
+    Scene* scene = nullptr;
 
     size_t currentFrame = 0;
 
@@ -75,6 +80,17 @@ private:
     void createImageViews();
 
     void createRenderPass();
+
+    void createDepthResources();
+
+    void createImage(uint32_t width,
+        uint32_t height,
+        VkFormat format,
+        VkImageTiling tiling,
+        VkImageUsageFlags usage,
+        VkMemoryPropertyFlags properties,
+        VkImage& image,
+        VkDeviceMemory& imageMemory);
 
     void createFramebuffers();
 

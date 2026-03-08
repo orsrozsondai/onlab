@@ -4,6 +4,7 @@
 #include "SettingsWindow.hpp"
 #include "backends/imgui_impl_glfw.h"
 #include <GLFW/glfw3.h>
+#include <array>
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
@@ -12,6 +13,7 @@
 #include <memory>
 #include <ostream>
 #include <stdexcept>
+#include <sys/types.h>
 #include <vector>
 #include <vulkan/vulkan_core.h>
 #include <algorithm>
@@ -64,6 +66,9 @@ void App::framebufferResizeCallback(GLFWwindow* window, int width, int height) {
 }
 
 void App::keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods) {
+    ImGuiIO& io = ImGui::GetIO();
+    if (io.WantCaptureKeyboard)
+        return;
     App* app = reinterpret_cast<App*>(glfwGetWindowUserPointer(window));
     app->handleKey(key, scancode, action, mods);
 }
@@ -391,7 +396,7 @@ void App::createSwapchain() {
     if (vkCreateSwapchainKHR(device, &info, nullptr, &swapchain) != VK_SUCCESS) {
         throw std::runtime_error("failed to create swapchain!");
     }
-    vkGetSwapchainImagesKHR(device, swapchain, &imageCount, nullptr);
+    // vkGetSwapchainImagesKHR(device, swapchain, &imageCount, nullptr);
 
 }
 
@@ -445,10 +450,27 @@ void App::createRenderPass() {
     colorRef.attachment = 0;
     colorRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
+    VkAttachmentDescription depthAttachment{};
+    depthAttachment.format = VK_FORMAT_D32_SFLOAT;
+    depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+    depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+
+    depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+
+    depthAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+    VkAttachmentReference depthRef{};
+    depthRef.attachment = 1;
+    depthRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
     VkSubpassDescription subpass{};
     subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
     subpass.colorAttachmentCount = 1;
     subpass.pColorAttachments = &colorRef;
+    subpass.pDepthStencilAttachment = &depthRef;
 
     VkSubpassDependency dependency{};
     dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
@@ -460,11 +482,15 @@ void App::createRenderPass() {
     dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
     dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
 
+    std::array<VkAttachmentDescription, 2> attachments{};
+    attachments[0] = colorAttachment;
+    attachments[1] = depthAttachment;
+
     VkRenderPassCreateInfo info{};
     info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
 
-    info.attachmentCount = 1;
-    info.pAttachments = &colorAttachment;
+    info.attachmentCount = (uint32_t)attachments.size();
+    info.pAttachments = attachments.data();
 
     info.subpassCount = 1;
     info.pSubpasses = &subpass;
@@ -478,18 +504,147 @@ void App::createRenderPass() {
 
 }
 
+void App::createDepthResources() {
+    std::vector<VkFormat> candidates = {VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT};
+    VkImageTiling tiling = VK_IMAGE_TILING_OPTIMAL;
+    VkFormatFeatureFlags features = VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT;
+    VkFormat selFormat;
+    bool foundFormat = false;
+    for (VkFormat format : candidates) {
+        VkFormatProperties props;
+        vkGetPhysicalDeviceFormatProperties(physicalDevice, format, &props);
+
+        if (tiling == VK_IMAGE_TILING_LINEAR && (props.linearTilingFeatures & features) == features) {
+            selFormat = format;
+            foundFormat = true;
+            break;
+        } else if (tiling == VK_IMAGE_TILING_OPTIMAL && (props.optimalTilingFeatures & features) == features) {
+            selFormat = format;
+            foundFormat = true;
+            break;
+        }
+    }
+
+    if (!foundFormat) throw std::runtime_error("failed to find supported format!");
+
+    depthImages = std::vector<VkImage>(imageCount);
+    depthImageMemories = std::vector<VkDeviceMemory>(imageCount);
+    depthImageViews = std::vector<VkImageView>(imageCount);
+
+    for (size_t i = 0; i < imageCount; i++) {
+
+        createImage(
+            swapchainExtent.width,
+            swapchainExtent.height,
+            selFormat,
+            VK_IMAGE_TILING_OPTIMAL,
+            VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+            depthImages[i],
+            depthImageMemories[i]
+        );
+
+
+        VkImageViewCreateInfo viewInfo{};
+        viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+        viewInfo.image = depthImages[i];
+        viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+        viewInfo.format = selFormat;
+
+        viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+        viewInfo.subresourceRange.baseMipLevel = 0;
+        viewInfo.subresourceRange.levelCount = 1;
+        viewInfo.subresourceRange.baseArrayLayer = 0;
+        viewInfo.subresourceRange.layerCount = 1;
+
+        if (vkCreateImageView(device, &viewInfo, nullptr, &depthImageViews[i]) != VK_SUCCESS) {
+            throw std::runtime_error("failed to create image view!");
+        }
+    }
+
+}
+
+void App::createImage(
+    uint32_t width,
+    uint32_t height,
+    VkFormat format,
+    VkImageTiling tiling,
+    VkImageUsageFlags usage,
+    VkMemoryPropertyFlags properties,
+    VkImage& image,
+    VkDeviceMemory& imageMemory
+) {
+
+    VkImageCreateInfo imageInfo{};
+    imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+    imageInfo.imageType = VK_IMAGE_TYPE_2D;
+
+    imageInfo.extent.width = width;
+    imageInfo.extent.height = height;
+    imageInfo.extent.depth = 1;
+
+    imageInfo.mipLevels = 1;
+    imageInfo.arrayLayers = 1;
+
+    imageInfo.format = format;
+    imageInfo.tiling = tiling;
+    imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+
+    imageInfo.usage = usage;
+
+    imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+    imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+    if (vkCreateImage(device, &imageInfo, nullptr, &image) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create image!");
+    }
+
+    VkMemoryRequirements memRequirements;
+    vkGetImageMemoryRequirements(device, image, &memRequirements);
+    uint32_t memoryTypeIndex;
+    bool found = false;
+    VkPhysicalDeviceMemoryProperties memProperties;
+    vkGetPhysicalDeviceMemoryProperties(
+        physicalDevice,
+        &memProperties
+    );
+
+    for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
+        if ((memRequirements.memoryTypeBits & (1 << i)) &&
+            (memProperties.memoryTypes[i].propertyFlags & properties) == properties) {
+            memoryTypeIndex = i;
+            found = true;
+            break;
+        }
+    }
+    if (!found) throw std::runtime_error("failed to find suitable memory type!");
+    
+    VkMemoryAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    allocInfo.allocationSize = memRequirements.size;
+    allocInfo.memoryTypeIndex = memoryTypeIndex;
+
+
+    if (vkAllocateMemory(device, &allocInfo, nullptr, &imageMemory) != VK_SUCCESS) {
+        throw std::runtime_error("failed to allocate image memory!");
+    }
+
+    vkBindImageMemory(device, image, imageMemory, 0);
+}
+
 void App::createFramebuffers() {
     framebuffers = std::vector<VkFramebuffer>(imageViews.size());
     for (size_t i = 0; i < imageViews.size(); i++) {
         VkImageView attachments[] = {
-            imageViews[i]
+            imageViews[i],
+            depthImageViews[i]
         };
 
         VkFramebufferCreateInfo info{};
         info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
 
         info.renderPass = renderPass;
-        info.attachmentCount = 1;
+        info.attachmentCount = 2;
         info.pAttachments = attachments;
 
         info.width  = swapchainExtent.width;
@@ -540,15 +695,18 @@ void App::recordCommandBuffer(VkCommandBuffer cmd, int imageIndex) {
     VkCommandBufferBeginInfo beginInfo{};
     beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     vkBeginCommandBuffer(cmd, &beginInfo);
-    VkClearValue clearColor = { bgcolor.x, bgcolor.y, bgcolor.z, 1.0};
+    std::array<VkClearValue, 2> clearValues{};
+    clearValues[0].color = { { bgcolor.x, bgcolor.y, bgcolor.z, 1.0}};
+    clearValues[1].depthStencil = { 1.0f, 0 };
+
     VkRenderPassBeginInfo renderInfo{};
     renderInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
     renderInfo.renderPass = renderPass;
     renderInfo.framebuffer = framebuffers[imageIndex];
     renderInfo.renderArea.offset = {0, 0};
     renderInfo.renderArea.extent = swapchainExtent;
-    renderInfo.clearValueCount = 1;
-    renderInfo.pClearValues = &clearColor;
+    renderInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
+    renderInfo.pClearValues = clearValues.data();
     vkCmdBeginRenderPass(
         cmd,
         &renderInfo,
@@ -635,6 +793,7 @@ App::App(const char* appName, const glm::vec2& windowSize) : objects(std::vector
     createSwapchain();
     createImageViews();
     createRenderPass();
+    createDepthResources();
     createFramebuffers();
     createCommandPool();
     createCommandBuffers();
@@ -663,6 +822,11 @@ App::~App() {
     vkDestroyRenderPass(device, renderPass, nullptr);
     for (VkImageView view : imageViews) {
         vkDestroyImageView(device, view, nullptr);
+    }
+    for (size_t i = 0; i < imageCount; i++) {
+        vkDestroyImageView(device, depthImageViews[i], nullptr);
+        vkDestroyImage(device, depthImages[i], nullptr);
+        vkFreeMemory(device, depthImageMemories[i], nullptr);
     }
     vkDestroySwapchainKHR(device, swapchain, nullptr);
     vkDestroyDevice(device, nullptr);
@@ -805,12 +969,18 @@ void App::recreateSwapchain() {
     for (auto view : imageViews)
         vkDestroyImageView(device, view, nullptr);
 
+    for (size_t i = 0; i < imageCount; i++) {
+        vkDestroyImageView(device, depthImageViews[i], nullptr);
+        vkDestroyImage(device, depthImages[i], nullptr);
+        vkFreeMemory(device, depthImageMemories[i], nullptr);
+    }
+
     vkDestroySwapchainKHR(device, swapchain, nullptr);
 
 
     createSwapchain();
     createImageViews();
-    // createDepthResources();   // if used
+    createDepthResources();
     createFramebuffers();
     recordCommands();
     camera->setAspectRatio((float)swapchainExtent.width/(float)swapchainExtent.height);
