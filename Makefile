@@ -1,5 +1,5 @@
 CXX = g++
-CXXFLAGS = -std=c++20 -Wall -Wextra
+CXXFLAGS = -std=c++20 -Wall -Wextra -g
 INCFLAGS = -Iinclude -Iimgui
 LDFLAGS = -lvulkan -lglfw
 IMGUI_LIB = imgui/libimgui.a

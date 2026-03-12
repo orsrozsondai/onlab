@@ -1,5 +1,5 @@
 #include "SettingsWindow.hpp"
-#include "FragmentUBO.hpp"
+#include "UniformBufferObjects.hpp"
 #include "Object.hpp"
 #include "imgui.h"
 #include "RenderContext.hpp"
@@ -16,11 +16,13 @@
 
 SettingsWindow::SettingsWindow(const RenderContext& context) : context(context) {
     init();
+    std::cout << "imgui" << std::endl;
 }
 
 void SettingsWindow::init() {
     IMGUI_CHECKVERSION();
-    ImGui::CreateContext();
+    ImGuiContext* ctx = ImGui::CreateContext();
+    ImGui::SetCurrentContext(ctx);
 
     io = &ImGui::GetIO();
     io->ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
@@ -103,24 +105,25 @@ void SettingsWindow::update() {
 
     ImGui::Begin("Settings",nullptr,ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoSavedSettings);
 
-    FragmentUBO* ubo = object->ubo();
+    MaterialUBO* materialUbo = object->ubo();
+    SceneUBO* sceneUBO = scene->ubo();
     
     ImGui::Text("Material:");
 
-    ImGui::ColorEdit3("albedo", glm::value_ptr(ubo->albedo));
-    ImGui::SliderFloat("roughness", &ubo->roughness, 0.0f, 1.0f);
-    ImGui::SliderFloat("metallic", &ubo->metallic, 0.0f, 1.0f);
+    ImGui::ColorEdit3("albedo", glm::value_ptr(materialUbo->albedo));
+    ImGui::SliderFloat("roughness", &materialUbo->roughness, 0.0f, 1.0f);
+    ImGui::SliderFloat("metallic", &materialUbo->metallic, 0.0f, 1.0f);
     
 
     ImGui::Text("Light:");
 
     const char* lightTypes[] = {"directional", "positional"};
-    int type = (int)ubo->lightPos.w;
+    int type = (int)sceneUBO->lightPos.w;
     if (ImGui::Combo("Type", &type, lightTypes, IM_ARRAYSIZE(lightTypes))) {
-        ubo->lightPos.w = (float)type;
+        sceneUBO->lightPos.w = (float)type;
     }
-    ImGui::ColorEdit3("color", glm::value_ptr(ubo->lightColor));
-    ImGui::DragFloat3(type?"position":"direction", glm::value_ptr(ubo->lightPos), type?1.0f:0.01f, 0.01f, type?100.0f:1.0f, type?"%.0f":"%.2f");
+    ImGui::ColorEdit3("color", glm::value_ptr(sceneUBO->lightColor));
+    ImGui::DragFloat3(type?"position":"direction", glm::value_ptr(sceneUBO->lightPos), type?1.0f:0.01f, 0.01f, type?100.0f:1.0f, type?"%.0f":"%.2f");
     
     float textHeight = ImGui::GetTextLineHeightWithSpacing();
 

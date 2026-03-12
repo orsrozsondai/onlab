@@ -1,6 +1,7 @@
 #include "App.hpp"
 #include "Object.hpp"
 #include "Pipeline.hpp"
+#include "Scene.hpp"
 #include "SettingsWindow.hpp"
 #include "backends/imgui_impl_glfw.h"
 #include <GLFW/glfw3.h>
@@ -18,6 +19,7 @@
 #include <vulkan/vulkan_core.h>
 #include <algorithm>
 #include <glm/gtc/matrix_transform.hpp>
+#include "Config.hpp"
 
 
 void App::initInstance(const char* appName) {
@@ -51,7 +53,16 @@ void App::initGLFW(const char* appName, int width, int height) {
     glfwInit();
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
-    window = glfwCreateWindow(width, height, appName, nullptr, nullptr);
+    GLFWmonitor* monitor = glfwGetPrimaryMonitor();
+    if (width <= 0 || height <= 0) {
+        const GLFWvidmode* mode = glfwGetVideoMode(monitor);
+        width = mode->width;
+        height = mode->height;
+    }
+    else {
+        monitor = nullptr;
+    }
+    window = glfwCreateWindow(width, height, appName, monitor, nullptr);
     glfwSetWindowUserPointer(window, this);
     glfwSetFramebufferSizeCallback(window, framebufferResizeCallback);
     glfwSetCursorPosCallback(window, mouseCallback);
@@ -66,9 +77,11 @@ void App::framebufferResizeCallback(GLFWwindow* window, int width, int height) {
 }
 
 void App::keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods) {
-    ImGuiIO& io = ImGui::GetIO();
-    if (io.WantCaptureKeyboard)
-        return;
+    if (ImGui::GetCurrentContext()) {
+        ImGuiIO& io = ImGui::GetIO();
+        if (io.WantCaptureKeyboard)
+            return;
+    }
     App* app = reinterpret_cast<App*>(glfwGetWindowUserPointer(window));
     app->handleKey(key, scancode, action, mods);
 }
@@ -78,9 +91,11 @@ void App::handleKey(int key, int scancode, int action, int mods) {
 }
 
 void App::mouseCallback(GLFWwindow* window, double xpos, double ypos) {
-    ImGuiIO& io = ImGui::GetIO();
-    if (io.WantCaptureMouse)
-        return;
+    if (ImGui::GetCurrentContext()) {
+        ImGuiIO& io = ImGui::GetIO();
+        if (io.WantCaptureMouse)
+            return;
+    }
     App* app = reinterpret_cast<App*>(glfwGetWindowUserPointer(window));
     app->handleMouseInput(xpos, ypos);
 } 
@@ -109,9 +124,11 @@ void App::handleMouseInput(double xpos, double ypos) {
 }
 
 void App::scrollCallback(GLFWwindow* window, double xoffset, double yoffset) {
-    ImGuiIO& io = ImGui::GetIO();
-    if (io.WantCaptureMouse)
-        return;
+    if (ImGui::GetCurrentContext()) {
+        ImGuiIO& io = ImGui::GetIO();
+        if (io.WantCaptureMouse)
+            return;
+    }
     App* app = reinterpret_cast<App*>(glfwGetWindowUserPointer(window));
     app->handleScroll(xoffset, yoffset);
 }
@@ -126,9 +143,11 @@ void App::mouseButtonCallback(GLFWwindow* window,
                          int action,
                          int mods)
 {
-    ImGuiIO& io = ImGui::GetIO();
-    if (io.WantCaptureMouse)
-        return;
+    if (ImGui::GetCurrentContext()) {
+        ImGuiIO& io = ImGui::GetIO();
+        if (io.WantCaptureMouse)
+            return;
+    }
     App* app = reinterpret_cast<App*>(glfwGetWindowUserPointer(window));
     app->handleMouseButton(button, action);
 }
@@ -712,22 +731,22 @@ void App::recordCommandBuffer(VkCommandBuffer cmd, int imageIndex) {
         &renderInfo,
         VK_SUBPASS_CONTENTS_INLINE
     );
-    for (const auto& object : objects) {
-        object->getPipeline()->bind(cmd);
-        VkViewport viewport{};
-        viewport.x = 0.0f;
-        viewport.y = 0.0f;
-        viewport.width  = (float)swapchainExtent.width;
-        viewport.height = (float)swapchainExtent.height;
-        viewport.minDepth = 0.0f;
-        viewport.maxDepth = 1.0f;
-        vkCmdSetViewport(cmd, 0, 1, &viewport);
-        VkRect2D scissor{};
-        scissor.offset = { 0, 0 };
-        scissor.extent = swapchainExtent;
-        vkCmdSetScissor(cmd, 0, 1, &scissor);
-        object->draw(cmd, imageIndex);
-    }
+    
+    scene->getPipeline()->bind(cmd);
+    VkViewport viewport{};
+    viewport.x = 0.0f;
+    viewport.y = 0.0f;
+    viewport.width  = (float)swapchainExtent.width;
+    viewport.height = (float)swapchainExtent.height;
+    viewport.minDepth = 0.0f;
+    viewport.maxDepth = 1.0f;
+    vkCmdSetViewport(cmd, 0, 1, &viewport);
+    VkRect2D scissor{};
+    scissor.offset = { 0, 0 };
+    scissor.extent = swapchainExtent;
+    vkCmdSetScissor(cmd, 0, 1, &scissor);
+    scene->draw(cmd, imageIndex);
+    
     if (settingsWindow != nullptr) {
         settingsWindow->draw((cmd));
     }
@@ -763,29 +782,23 @@ void App::createSyncObjects() {
 }
 
 void App::createDescriptorPool() {
-    std::array<VkDescriptorPoolSize, 2> poolSizes{};
-
+    std::array<VkDescriptorPoolSize, 1> poolSizes{};
     poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    poolSizes[0].descriptorCount = imageCount;
-    
-    poolSizes[1].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    poolSizes[1].descriptorCount = imageCount;
-    // VkDescriptorPoolSize poolSize{};
-    // poolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    // poolSize.descriptorCount = imageCount * 10;
+    poolSizes[0].descriptorCount = imageCount * MAX_OBJECT_COUNT * 4 + imageCount;
+
 
     VkDescriptorPoolCreateInfo poolInfo{};
     poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
     poolInfo.poolSizeCount = poolSizes.size();
     poolInfo.pPoolSizes = poolSizes.data();
-    poolInfo.maxSets = imageCount;
+    poolInfo.maxSets = imageCount * MAX_OBJECT_COUNT*2 + imageCount;
 
     if (vkCreateDescriptorPool(device, &poolInfo, nullptr, &descriptorPool) != VK_SUCCESS) {
         throw std::runtime_error("failed to creater descriptor pool!");
     }
 }
 
-App::App(const char* appName, const glm::vec2& windowSize) : objects(std::vector<std::unique_ptr<Object>>()), framebufferResized(false) {
+App::App(const char* appName, const glm::vec2& windowSize) : framebufferResized(false) {
     initGLFW(appName, windowSize.x, windowSize.y);
     initInstance(appName);
     initSurface();
@@ -797,25 +810,30 @@ App::App(const char* appName, const glm::vec2& windowSize) : objects(std::vector
     createFramebuffers();
     createCommandPool();
     createCommandBuffers();
-    recordCommands();
+    // recordCommands();
     createSyncObjects();
     createDescriptorPool();
+    
+    SettingsWindow settingsWindow(getRenderContext());
+    this->settingsWindow = &settingsWindow;
+    std::cout << "created" << std::endl;
 }
 App::~App() {
     vkDeviceWaitIdle(device);
     vkDestroyDescriptorPool(device, descriptorPool, nullptr);
-    for (const auto& object : objects) {
-        object->destroy();
-    }
+    // for (const auto& object : objects) {
+    //     object->destroy();
+    // }
+    scene->destroy();
     for (int i = 0; i < (int)imageCount; i++) {
         vkDestroySemaphore(device, imageAvailable[i], nullptr);
         vkDestroySemaphore(device, renderFinished[i], nullptr);
         vkDestroyFence(device, inFlightFences[i], nullptr);
     }
     vkDestroyCommandPool(device, commandPool, nullptr);
-    for (const auto& object : objects) {
-        object->getPipeline()->destroy();
-    }
+    // for (const auto& object : objects) {
+    //     object->getPipeline()->destroy();
+    // }
     for (VkFramebuffer fb : framebuffers) {
         vkDestroyFramebuffer(device, fb, nullptr);
     }
@@ -850,9 +868,10 @@ void App::run() {
             settingsWindow->update();
         }
 
-        for (const auto& object : objects) {
-            object->update(*camera);
-        }
+        // for (const auto& object : objects) {
+        //     object->update(*camera);
+        // }
+        scene->update();
 
         
 
@@ -1013,9 +1032,9 @@ VkCommandPool App::getCommandPool() const {
     return commandPool;
 }
 
-Object* App::addObject(std::unique_ptr<Object> obj) {
-    objects.push_back(std::move(obj));
-    return objects.back().get();
+void App::setScene(Scene* pScene) {
+    scene = pScene;
+    // camera->lookAt(scene->selectedObject()->getPosition());
 }
 
 void App::setCamera(Camera* pCamera) {

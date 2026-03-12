@@ -2,6 +2,7 @@
 
 #include "Object.hpp"
 #include "RenderContext.hpp"
+#include "Scene.hpp"
 #include "imgui.h"
 #include "backends/imgui_impl_glfw.h"
 #include "backends/imgui_impl_vulkan.h"
@@ -14,6 +15,7 @@ private:
     VkDescriptorPool descriptorPool;
     ImGuiIO* io;
     Object* object;
+    Scene* scene;
     bool visible = true;
 
 

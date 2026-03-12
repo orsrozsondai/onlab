@@ -8,11 +8,22 @@
 #include <stdexcept>
 #include <vector>
 
-MeshLoader::MeshLoader(const std::string& path) : path(path) {
+MeshLoader::MeshLoader(const std::string& path, const std::string& name) : path(path) {
+    this->name = name.empty()?path:name;
     loadOBJ();
 }
+MeshLoader::MeshLoader() {
 
-bool MeshLoader::loadOBJ() {
+}
+
+MeshLoader::MeshLoader(const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices, const std::string& name)
+    : vertices(vertices),
+      indices(indices),
+      name(name) {
+
+}
+
+void MeshLoader::loadOBJ() {
     tinyobj::attrib_t attrib;
     std::vector<tinyobj::shape_t> shapes;
     std::vector<tinyobj::material_t> materials;
@@ -29,11 +40,10 @@ bool MeshLoader::loadOBJ() {
         true
     );
 
-    // if (!err.empty()) throw std::runtime_error(err);
-    std::cerr << err << std::endl;
+    if (err.ends_with('\n')) err.pop_back();
 
     if (!success)
-        return false;
+        throw std::runtime_error(err);
 
     vertices.clear();
     indices.clear();
@@ -66,7 +76,6 @@ bool MeshLoader::loadOBJ() {
 
     computeTangents();
 
-    return true;
 }
 
 void MeshLoader::computeTangents() {

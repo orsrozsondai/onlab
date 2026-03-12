@@ -91,7 +91,7 @@ void Pipeline::create() {
     raster.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
     raster.polygonMode = VK_POLYGON_MODE_FILL;
     raster.lineWidth = 1.0f;
-    raster.cullMode = VK_CULL_MODE_BACK_BIT;
+    raster.cullMode = VK_CULL_MODE_NONE;
     raster.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
 
     VkPipelineMultisampleStateCreateInfo ms{};
@@ -117,15 +117,22 @@ void Pipeline::create() {
     vsUboLayoutBinding.descriptorCount = 1;
     vsUboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
     
-    VkDescriptorSetLayoutBinding fsUboLayoutBinding{};
-    fsUboLayoutBinding.binding = 1;
-    fsUboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    fsUboLayoutBinding.descriptorCount = 1;
-    fsUboLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    VkDescriptorSetLayoutBinding materialUboLayoutBinding{};
+    materialUboLayoutBinding.binding = 1;
+    materialUboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    materialUboLayoutBinding.descriptorCount = 1;
+    materialUboLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    
+    VkDescriptorSetLayoutBinding sceneUboLayoutBinding{};
+    sceneUboLayoutBinding.binding = 2;
+    sceneUboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    sceneUboLayoutBinding.descriptorCount = 1;
+    sceneUboLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
-    std::array<VkDescriptorSetLayoutBinding, 2> bindings = {
+    std::array<VkDescriptorSetLayoutBinding, 3> bindings = {
         vsUboLayoutBinding,
-        fsUboLayoutBinding
+        materialUboLayoutBinding,
+        sceneUboLayoutBinding
     };
 
     VkDescriptorSetLayoutCreateInfo descriptorSetLayoutInfo{};

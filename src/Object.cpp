@@ -1,7 +1,8 @@
 #include "Object.hpp"
-#include "FragmentUBO.hpp"
+#include "MeshLoader.hpp"
 #include "Pipeline.hpp"
 #include "RenderContext.hpp"
+#include "UniformBufferObjects.hpp"
 #include "Vertex.hpp"
 #include <cstdint>
 #include <cstring>
@@ -13,11 +14,12 @@
 #include <stdexcept>
 #include <vector>
 #include <array>
-#include "VertexUBO.hpp"
 #include <vulkan/vulkan_core.h>
 
-Object::Object(const RenderContext& context, Pipeline* pipeline, const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices) 
-        : pipeline(pipeline), context(context), vertices(vertices), indices(indices) {
+Object::Object(const RenderContext& context, Pipeline* pipeline, MeshLoader* pMesh) 
+        : pipeline(pipeline), context(context), mesh(pMesh) {
+    if (mesh->getVertices().empty()) throw std::runtime_error("vertices is empty");
+    if (mesh->getIndices().empty()) throw std::runtime_error("indices is empty");
     createVertexBuffer();
     uploadVertices();
     createIndexBuffer();
@@ -28,7 +30,7 @@ Object::Object(const RenderContext& context, Pipeline* pipeline, const std::vect
 }
 
 void Object::createVertexBuffer() {
-    VkDeviceSize size = sizeof(vertices[0]) * vertices.size();
+    VkDeviceSize size = sizeof(mesh->getVertices()[0]) * mesh->getVertices().size();
     createBuffer(
         size,
         VK_BUFFER_USAGE_TRANSFER_DST_BIT |
@@ -40,7 +42,7 @@ void Object::createVertexBuffer() {
 }
 
 void Object::createIndexBuffer() {
-    VkDeviceSize size = sizeof(indices[0]) * indices.size();
+    VkDeviceSize size = sizeof(mesh->getIndices()[0]) * mesh->getIndices().size();
     createBuffer(
         size,
         VK_BUFFER_USAGE_TRANSFER_DST_BIT |
@@ -52,7 +54,7 @@ void Object::createIndexBuffer() {
 }
 
 void Object::uploadVertices() {
-    VkDeviceSize size = sizeof(vertices[0]) * vertices.size();
+    VkDeviceSize size = sizeof(mesh->getVertices()[0]) * mesh->getVertices().size();
 
     VkBuffer stagingBuffer;
     VkDeviceMemory stagingMemory;
@@ -68,7 +70,7 @@ void Object::uploadVertices() {
     
     void* data;
     vkMapMemory(context.device, stagingMemory, 0, size, 0, &data);
-    memcpy(data, vertices.data(), (size_t)size);
+    memcpy(data, mesh->getVertices().data(), (size_t)size);
     vkUnmapMemory(context.device, stagingMemory);
 
     copyBuffer(
@@ -86,7 +88,7 @@ void Object::uploadVertices() {
 }
 
 void Object::uploadIndices() {
-    VkDeviceSize size = sizeof(indices[0]) * indices.size();
+    VkDeviceSize size = sizeof(mesh->getIndices()[0]) * mesh->getIndices().size();
 
     VkBuffer stagingBuffer;
     VkDeviceMemory stagingMemory;
@@ -102,7 +104,7 @@ void Object::uploadIndices() {
     
     void* data;
     vkMapMemory(context.device, stagingMemory, 0, size, 0, &data);
-    memcpy(data, indices.data(), (size_t)size);
+    memcpy(data, mesh->getIndices().data(), (size_t)size);
     vkUnmapMemory(context.device, stagingMemory);
 
     copyBuffer(
@@ -137,15 +139,15 @@ void Object::draw(VkCommandBuffer cmd, size_t frameIndex) const {
     vkCmdBindIndexBuffer(cmd, indexBuffer, 0, VK_INDEX_TYPE_UINT32);
     
     // vkCmdDraw(cmd, vertices.size(), 1, 0, 0);
-    vkCmdDrawIndexed(cmd, static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
+    vkCmdDrawIndexed(cmd, static_cast<uint32_t>(mesh->getIndices().size()), 1, 0, 0, 0);
 }
 
 void Object::update(const Camera& camera) {
-    vertexUBO.view = camera.view();
-    vertexUBO.proj = camera.proj();
+    mvpUBO.view = camera.view();
+    mvpUBO.proj = camera.proj();
     for (int index = 0; index < context.imageCount; index++) {
-        memcpy(vs_uniformBuffersMapped[index], &vertexUBO, sizeof(VertexUBO));
-        memcpy(fs_uniformBuffersMapped[index], &fragmentUBO, sizeof(FragmentUBO));
+        memcpy(vs_uniformBuffersMapped[index], &mvpUBO, sizeof(MVP_UBO));
+        memcpy(fs_uniformBuffersMapped[index], &materialUBO, sizeof(MaterialUBO));
     }
 }
 
@@ -253,10 +255,27 @@ Pipeline* Object::getPipeline() const {
 }
 
 void Object::destroy(){
-    vkDestroyBuffer(context.device, vertexBuffer,  nullptr);
-    vkFreeMemory(context.device, vertexMemory, nullptr);
-    vkDestroyBuffer(context.device, indexBuffer, nullptr);
-    vkFreeMemory(context.device, indexMemory, nullptr);
+    std::cout << "Destroying object: " << this << std::endl;
+    if (vertexBuffer != VK_NULL_HANDLE) {
+        vkDestroyBuffer(context.device, vertexBuffer, nullptr);
+        vertexBuffer = VK_NULL_HANDLE;
+    }
+
+    if (vertexMemory != VK_NULL_HANDLE) {
+        vkFreeMemory(context.device, vertexMemory, nullptr);
+        vertexMemory = VK_NULL_HANDLE;
+    }
+
+    if (indexBuffer != VK_NULL_HANDLE) {
+        vkDestroyBuffer(context.device, indexBuffer, nullptr);
+        indexBuffer = VK_NULL_HANDLE;
+    }
+
+    if (indexMemory != VK_NULL_HANDLE) {
+        vkFreeMemory(context.device, indexMemory, nullptr);
+        indexMemory = VK_NULL_HANDLE;
+    }
+
     for (size_t i = 0; i < context.imageCount; i++) {
         if (vs_uniformBuffers[i] != VK_NULL_HANDLE) vkDestroyBuffer(context.device, vs_uniformBuffers[i], nullptr);
         vs_uniformBuffers[i] = VK_NULL_HANDLE;
@@ -274,7 +293,7 @@ void Object::createUniformBuffers() {
     vs_uniformBuffersMemory = std::vector<VkDeviceMemory>(context.imageCount);
     vs_uniformBuffersMapped = std::vector<void*>(context.imageCount);
 
-    VkDeviceSize size = sizeof(VertexUBO);
+    VkDeviceSize size = sizeof(MVP_UBO);
 
     for (size_t i = 0; i < context.imageCount; i++) {
         createBuffer(size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, vs_uniformBuffers[i], vs_uniformBuffersMemory[i]);
@@ -285,7 +304,7 @@ void Object::createUniformBuffers() {
     fs_uniformBuffersMemory = std::vector<VkDeviceMemory>(context.imageCount);
     fs_uniformBuffersMapped = std::vector<void*>(context.imageCount);
 
-    size = sizeof(FragmentUBO);
+    size = sizeof(MaterialUBO);
 
     for (size_t i = 0; i < context.imageCount; i++) {
         createBuffer(size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, fs_uniformBuffers[i], fs_uniformBuffersMemory[i]);
@@ -294,8 +313,8 @@ void Object::createUniformBuffers() {
     }
 }
 
-FragmentUBO* Object::ubo() {
-    return &fragmentUBO;
+MaterialUBO* Object::ubo() {
+    return &materialUBO;
 }
 
 void Object::createDescriptorSets() {
@@ -323,19 +342,17 @@ void Object::createDescriptorSets() {
         VkDescriptorBufferInfo vsBufferInfo{};
         vsBufferInfo.buffer = vs_uniformBuffers[i];
         vsBufferInfo.offset = 0;
-        vsBufferInfo.range  = sizeof(VertexUBO);
+        vsBufferInfo.range  = sizeof(MVP_UBO);
 
         VkDescriptorBufferInfo fsBufferInfo{};
         fsBufferInfo.buffer = fs_uniformBuffers[i];
         fsBufferInfo.offset = 0;
-        fsBufferInfo.range  = sizeof(FragmentUBO);
+        fsBufferInfo.range  = sizeof(MaterialUBO);
 
         std::array<VkWriteDescriptorSet, 2> writes{};
-        // VkWriteDescriptorSet write{};
         writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         writes[0].dstSet = descriptorSets[i];
         writes[0].dstBinding = 0; 
-        // writes[0].dstArrayElement = 0;
         writes[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         writes[0].descriptorCount = 1;
         writes[0].pBufferInfo = &vsBufferInfo;
@@ -364,8 +381,13 @@ void Object::setPosition(const glm::vec3& pos) {
     position = pos;
     updateModelMat();
 }
+
+const glm::vec3& Object::getPosition() const {
+    return position;
+}
+
 void Object::updateModelMat() {
-    vertexUBO.model = glm::mat4(1.0f);
-    vertexUBO.model = glm::translate(vertexUBO.model, position);
-    vertexUBO.model = glm::scale(vertexUBO.model, glm::vec3(scale));
+    mvpUBO.model = glm::mat4(1.0f);
+    mvpUBO.model = glm::translate(mvpUBO.model, position);
+    mvpUBO.model = glm::scale(mvpUBO.model, glm::vec3(scale));
 }

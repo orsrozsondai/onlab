@@ -3,17 +3,32 @@
 #include "MeshLoader.hpp"
 #include "Object.hpp"
 #include "Pipeline.hpp"
+#include "Scene.hpp"
 #include "SettingsWindow.hpp"
+#include "imgui.h"
 #include <GLFW/glfw3.h>
+#include <cstdlib>
 #include <exception>
 #include <iostream>
+#include <memory>
+#include <sys/types.h>
+#include <utility>
 #include <vulkan/vulkan_core.h>
 
 
 
 int main() {
-    MeshLoader skullMesh("res/models/skull.obj");
-    App app("vkDemo", glm::vec2(800, 600));
+    std::unique_ptr<MeshLoader> skullMesh;
+    try {
+        skullMesh = std::make_unique<MeshLoader>(MeshLoader("res/models/skull.obj", "Skull"));
+    
+
+    std::cout << "mesh loaded" << std::endl;
+    
+    
+    App app("PBR");
+
+    std::cout << "app made" << std::endl;
     Pipeline p = Pipeline(app.getRenderContext(), "default.vert","default.frag");
 
     
@@ -83,13 +98,9 @@ int main() {
         20,22,23
     };
 
-        
-    
+    MeshLoader cubeMesh(cubeVertices, cubeIndices, "Cube");
 
-    auto obj = std::make_unique<Object>(app.getRenderContext(), &p, skullMesh.getVertices(), skullMesh.getIndices());
-    Object* ptr = app.addObject(std::move(obj));
-    ptr->setScale(0.1);
-    
+    Object* obj;
     int width, height;
     glfwGetWindowSize(app.getRenderContext().window, &width, &height);
     Camera camera(
@@ -98,12 +109,36 @@ int main() {
         (float)width/height,
         45.0f
     );
-    app.setCamera(&camera);
-    SettingsWindow settingsWindow(app.getRenderContext());
-    settingsWindow.setControlledObject(ptr);
-    app.addSettingsWindow(&settingsWindow);
+    std::cout << "camera made" << std::endl;
+    Scene scene(app.getRenderContext(), &p, &camera);
+    std::cout << "scene made" << std::endl;
+    scene.addMesh(std::move(skullMesh));
 
-    try {
+    // try {
+        // auto o = std::make_unique<Object>(app.getRenderContext(), &p, &skullMesh);
+        // obj = app.addObject(std::move(o));
+        // obj->setScale(0.1f);
+        // obj->ubo()->albedo = {0.05,0.05,0.1};
+    // }
+    // catch (const std::exception& e) {
+    //     std::cerr << e.what() << std::endl;
+    // }
+    std::cout << "mesh added" << std::endl;
+    app.setScene(&scene);
+    
+    std::cout << "scene set" << std::endl;
+    
+    app.setCamera(&camera);
+    // SettingsWindow settingsWindow(app.getRenderContext());
+    // settingsWindow.setControlledObject(obj);
+    // app.addSettingsWindow(&settingsWindow);
+// }
+//     catch (const std::exception& e) {
+//         std::cerr << e.what() << std::endl;
+//     }
+//     try {
+        // ImGui::GetIO();
+        std::cout << "running" << std::endl;
         app.run();
     }
     catch (const std::exception& e) {

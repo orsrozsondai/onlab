@@ -53,7 +53,7 @@ private:
 
     size_t currentFrame = 0;
 
-    std::vector<std::unique_ptr<Object>> objects;
+    // std::vector<std::unique_ptr<Object>> objects;
 
     glm::vec3 bgcolor =  { 0.05f, 0.05f, 0.1f };
 
@@ -122,7 +122,7 @@ private:
 
 
 public:
-    App(const char* appName, const glm::vec2& windowSize);
+    App(const char* appName, const glm::vec2& windowSize = {1000,600});
 
     virtual void run();
 
@@ -150,6 +150,8 @@ public:
     void handleKey(int key, int scancode, int action, int mods);
 
     void addSettingsWindow(SettingsWindow* pSettingsWindow);
+
+    void setScene(Scene* pScene);
 
     ~App();
 };

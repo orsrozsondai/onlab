@@ -1,11 +1,11 @@
 #pragma once
 
 #include "Camera.hpp"
+#include "MeshLoader.hpp"
 #include "Pipeline.hpp"
 #include "RenderContext.hpp"
 #include "Vertex.hpp"
-#include "VertexUBO.hpp"
-#include "FragmentUBO.hpp"
+#include "UniformBufferObjects.hpp"
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
@@ -21,8 +21,7 @@ class Object {
 private:
     Pipeline* pipeline;
     RenderContext context;
-    std::vector<Vertex> vertices;
-    std::vector<uint32_t> indices;
+    MeshLoader* mesh;
 
     VkBuffer vertexBuffer = VK_NULL_HANDLE;
     VkDeviceMemory vertexMemory = VK_NULL_HANDLE;
@@ -37,8 +36,8 @@ private:
     std::vector<void*> fs_uniformBuffersMapped;
     std::vector<VkDescriptorSet> descriptorSets;
 
-    VertexUBO vertexUBO;
-    FragmentUBO fragmentUBO;
+    MVP_UBO mvpUBO;
+    MaterialUBO materialUBO;
 
     glm::vec3 position = {0,0,0};
     float scale = 1.0;
@@ -63,7 +62,9 @@ private:
 
     public:
 
-    Object(const RenderContext& context, Pipeline* pipeline, const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices);
+    Object(const RenderContext& context, Pipeline* pipeline, MeshLoader* pMesh);
+
+    Object() {};
 
     void draw(VkCommandBuffer cmd, size_t frameIndex) const;
 
@@ -71,10 +72,11 @@ private:
 
     void update(const Camera& camera);
 
-    FragmentUBO* ubo();
+    MaterialUBO* ubo();
 
     void setScale(float scale);
     void setPosition(const glm::vec3& pos);
+    const glm::vec3& getPosition() const;
 
     void destroy();
 

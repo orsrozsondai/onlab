@@ -1,5 +1,5 @@
 CXX = g++
-CXXFLAGS = -std=c++17 -O2 -I. -Ibackends
+CXXFLAGS = -std=c++17 -O2 -I. -Ibackends -g
 
 SRC = $(wildcard *.cpp)
 SRC += $(wildcard backends/*.cpp)
