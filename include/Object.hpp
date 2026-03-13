@@ -79,5 +79,7 @@ private:
     const glm::vec3& getPosition() const;
 
     void destroy();
+    Object(const Object&) = delete;
+    Object& operator=(const Object&) = delete;
 
 };

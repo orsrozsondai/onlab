@@ -19,16 +19,15 @@
 
 int main() {
     std::unique_ptr<MeshLoader> skullMesh;
-    try {
-        skullMesh = std::make_unique<MeshLoader>(MeshLoader("res/models/skull.obj", "Skull"));
+    skullMesh = std::make_unique<MeshLoader>(MeshLoader("res/models/skull.obj", "Skull"));
     
 
-    std::cout << "mesh loaded" << std::endl;
+    // std::cout << "mesh loaded" << std::endl;
     
     
     App app("PBR");
 
-    std::cout << "app made" << std::endl;
+    // std::cout << "app made" << std::endl;
     Pipeline p = Pipeline(app.getRenderContext(), "default.vert","default.frag");
 
     
@@ -98,7 +97,7 @@ int main() {
         20,22,23
     };
 
-    MeshLoader cubeMesh(cubeVertices, cubeIndices, "Cube");
+    auto cubeMesh = std::make_unique<MeshLoader>(cubeVertices, cubeIndices, "Cube");
 
     Object* obj;
     int width, height;
@@ -109,40 +108,21 @@ int main() {
         (float)width/height,
         45.0f
     );
-    std::cout << "camera made" << std::endl;
+    // std::cout << "camera made" << std::endl;
     Scene scene(app.getRenderContext(), &p, &camera);
-    std::cout << "scene made" << std::endl;
-    scene.addMesh(std::move(skullMesh));
+    // std::cout << "scene made" << std::endl;
+    scene.addMesh(std::move(cubeMesh));
 
-    // try {
-        // auto o = std::make_unique<Object>(app.getRenderContext(), &p, &skullMesh);
-        // obj = app.addObject(std::move(o));
-        // obj->setScale(0.1f);
-        // obj->ubo()->albedo = {0.05,0.05,0.1};
-    // }
-    // catch (const std::exception& e) {
-    //     std::cerr << e.what() << std::endl;
-    // }
-    std::cout << "mesh added" << std::endl;
+    
+    // std::cout << "mesh added" << std::endl;
     app.setScene(&scene);
     
-    std::cout << "scene set" << std::endl;
+    // std::cout << "scene set" << std::endl;
     
     app.setCamera(&camera);
-    // SettingsWindow settingsWindow(app.getRenderContext());
-    // settingsWindow.setControlledObject(obj);
-    // app.addSettingsWindow(&settingsWindow);
-// }
-//     catch (const std::exception& e) {
-//         std::cerr << e.what() << std::endl;
-//     }
-//     try {
-        // ImGui::GetIO();
-        std::cout << "running" << std::endl;
+        // std::cout << "running" << std::endl;
         app.run();
-    }
-    catch (const std::exception& e) {
-        std::cerr << e.what() << std::endl;
-    }
+   
+    app.destroy();
     return EXIT_SUCCESS;
 }

@@ -11,16 +11,16 @@
 
 Scene::Scene(const RenderContext& context, Pipeline* pPipeline, Camera* pCamera) : context(context), pipeline(pPipeline), camera(pCamera) {
     meshes = std::vector<std::unique_ptr<MeshLoader>>();
-    objects = std::vector<std::unique_ptr<Object>>();
+    // objects.resize(MAX_OBJECT_COUNT);
     createUniformBuffers();
     createDescriptorSets();
     // createObjects();
 }
 
-Object* Scene::addObject(std::unique_ptr<Object> obj) {
-    objects.push_back(std::move(obj));
-    return objects.back().get();
-}
+// Object* Scene::addObject(std::unique_ptr<Object> obj) {
+//     objects.push_back(std::move(obj));
+//     return objects.back().get();
+// }
 
 void Scene::addMesh(std::unique_ptr<MeshLoader> mesh) {
     meshes.push_back(std::move(mesh));
@@ -130,19 +130,23 @@ void Scene::createUniformBuffers() {
 }
 
 void Scene::createObjects() {
+    // destroyObjects();
     for (int i = 0; i < MAX_OBJECT_COUNT; i++) {
-        objects.push_back(std::make_unique<Object>(Object(context, pipeline, meshes[meshIndex].get())));
+        Object* obj = new Object(context, pipeline, meshes[meshIndex].get());
+        // std::cout << "object added: " << obj << std::endl;
+        objects.push_back(obj);
     }
+
+    // std::cout << "create objects" << std::endl;
 }
 
 void Scene::destroyObjects() {
-    for (auto& object : objects) {
-        if(object.get()){
-            object.get()->destroy();
-            // object.reset();
-        }
+    for (int i = 0; i < MAX_OBJECT_COUNT; i++) {
+        // std::cout << "destroy " << objects[i] << std::endl;
+        objects[i]->destroy();
+        delete(objects[i]);
     }
-    //objects.clear();
+    objects.clear();
 }
 
 void Scene::setMeshIndex(int index) {
@@ -152,13 +156,17 @@ void Scene::setMeshIndex(int index) {
 }
 
 void Scene::update() {
+    
     for (int i = 0; i < currentObjectCount; i++) {
-        objects[i].get()->update(*camera);
+        objects[i]->update(*camera);
+        objects[i]->setPosition({2*i-1, 0, 2*i-1});
+        objects[i]->ubo()->albedo = i==selectedObjectIndex?glm::vec3(1,0,0):glm::vec3(0,0,0);
     }
+    
 }
 void Scene::draw(VkCommandBuffer cmd, size_t frameIndex) {
     for (int i = 0; i < currentObjectCount; i++) {
-        objects[i].get()->draw(cmd, frameIndex);
+        objects[i]->draw(cmd, frameIndex);
     }
 }
 
@@ -171,15 +179,39 @@ SceneUBO* Scene::ubo() {
 }
 
 Object* Scene::selectedObject() {
-    return objects[selectedObjectIndex].get();
+    return objects[selectedObjectIndex];
 }
 
 void Scene::selectObject(int index) {
     selectedObjectIndex = index;
+    std::cout << "selected index: " << selectedObjectIndex << std::endl;
     camera->lookAt(selectedObject()->getPosition());
+}
+void Scene::cycleSelected(int dir) {
+    if (dir == -1) {
+        selectedObjectIndex--;
+        if (selectedObjectIndex == -1) selectedObjectIndex = currentObjectCount-1;
+    }
+    else if (dir == 1) {
+        selectedObjectIndex++;
+        if (selectedObjectIndex == currentObjectCount) selectedObjectIndex = 0;
+    }
 }
 
 void Scene::destroy() {
     destroyObjects();
+    for (VkBuffer& buffer : uniformBuffers) {
+        if (buffer != VK_NULL_HANDLE) {
+            vkDestroyBuffer(context.device, buffer, nullptr);
+            buffer = VK_NULL_HANDLE;
+        }
+    }
+
+    for (VkDeviceMemory& memory : uniformBuffersMemory) {
+        if (memory != VK_NULL_HANDLE) {
+            vkFreeMemory(context.device, memory, nullptr);
+            memory = VK_NULL_HANDLE;
+        }
+    }
     pipeline->destroy();
 }

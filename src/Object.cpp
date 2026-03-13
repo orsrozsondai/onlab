@@ -255,7 +255,7 @@ Pipeline* Object::getPipeline() const {
 }
 
 void Object::destroy(){
-    std::cout << "Destroying object: " << this << std::endl;
+    // std::cout << "Destroying object: " << vertexBuffer << std::endl;
     if (vertexBuffer != VK_NULL_HANDLE) {
         vkDestroyBuffer(context.device, vertexBuffer, nullptr);
         vertexBuffer = VK_NULL_HANDLE;

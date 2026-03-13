@@ -153,5 +153,5 @@ public:
 
     void setScene(Scene* pScene);
 
-    ~App();
+    void destroy();
 };

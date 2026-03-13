@@ -12,11 +12,11 @@
 
 class Scene {
 private:
-    int currentObjectCount = 1;
+    int currentObjectCount = 3;
     int meshIndex = 0;
-    int selectedObjectIndex = 0;
+    int selectedObjectIndex = 1;
     RenderContext context;
-    std::vector<std::unique_ptr<Object>> objects;
+    std::vector<Object*> objects;
     SceneUBO sceneUBO;
     // SettingsWindow settingsWindow;
     std::vector<std::unique_ptr<MeshLoader>> meshes;
@@ -44,6 +44,7 @@ public:
     SceneUBO* ubo();
     Object* selectedObject();
     void selectObject(int index);
+    void cycleSelected(int dir); // -1 = left, 1 = right
     void destroy();
 
 

@@ -105,25 +105,25 @@ void SettingsWindow::update() {
 
     ImGui::Begin("Settings",nullptr,ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoSavedSettings);
 
-    MaterialUBO* materialUbo = object->ubo();
-    SceneUBO* sceneUBO = scene->ubo();
+    // MaterialUBO* materialUbo = object->ubo();
+    // SceneUBO* sceneUBO = scene->ubo();
     
-    ImGui::Text("Material:");
+    // ImGui::Text("Material:");
 
-    ImGui::ColorEdit3("albedo", glm::value_ptr(materialUbo->albedo));
-    ImGui::SliderFloat("roughness", &materialUbo->roughness, 0.0f, 1.0f);
-    ImGui::SliderFloat("metallic", &materialUbo->metallic, 0.0f, 1.0f);
+    // ImGui::ColorEdit3("albedo", glm::value_ptr(materialUbo->albedo));
+    // ImGui::SliderFloat("roughness", &materialUbo->roughness, 0.0f, 1.0f);
+    // ImGui::SliderFloat("metallic", &materialUbo->metallic, 0.0f, 1.0f);
     
 
-    ImGui::Text("Light:");
+    // ImGui::Text("Light:");
 
-    const char* lightTypes[] = {"directional", "positional"};
-    int type = (int)sceneUBO->lightPos.w;
-    if (ImGui::Combo("Type", &type, lightTypes, IM_ARRAYSIZE(lightTypes))) {
-        sceneUBO->lightPos.w = (float)type;
-    }
-    ImGui::ColorEdit3("color", glm::value_ptr(sceneUBO->lightColor));
-    ImGui::DragFloat3(type?"position":"direction", glm::value_ptr(sceneUBO->lightPos), type?1.0f:0.01f, 0.01f, type?100.0f:1.0f, type?"%.0f":"%.2f");
+    // const char* lightTypes[] = {"directional", "positional"};
+    // int type = (int)sceneUBO->lightPos.w;
+    // if (ImGui::Combo("Type", &type, lightTypes, IM_ARRAYSIZE(lightTypes))) {
+    //     sceneUBO->lightPos.w = (float)type;
+    // }
+    // ImGui::ColorEdit3("color", glm::value_ptr(sceneUBO->lightColor));
+    // ImGui::DragFloat3(type?"position":"direction", glm::value_ptr(sceneUBO->lightPos), type?1.0f:0.01f, 0.01f, type?100.0f:1.0f, type?"%.0f":"%.2f");
     
     float textHeight = ImGui::GetTextLineHeightWithSpacing();
 

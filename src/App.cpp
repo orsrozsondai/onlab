@@ -87,7 +87,14 @@ void App::keyCallback(GLFWwindow* window, int key, int scancode, int action, int
 }
 
 void App::handleKey(int key, int scancode, int action, int mods) {
-    if (key == GLFW_KEY_M && action == GLFW_PRESS) settingsWindow->toggle();
+    if (action == GLFW_PRESS) {
+        if (key == GLFW_KEY_M) settingsWindow->toggle();
+        if (key >= GLFW_KEY_0 && key <= GLFW_KEY_9) {
+            scene->selectObject(key-GLFW_KEY_0);
+        }
+        if (key == GLFW_KEY_LEFT) scene->cycleSelected(-1);
+        if (key == GLFW_KEY_RIGHT) scene->cycleSelected(1);
+    }
 }
 
 void App::mouseCallback(GLFWwindow* window, double xpos, double ypos) {
@@ -814,12 +821,12 @@ App::App(const char* appName, const glm::vec2& windowSize) : framebufferResized(
     createSyncObjects();
     createDescriptorPool();
     
-    SettingsWindow settingsWindow(getRenderContext());
-    this->settingsWindow = &settingsWindow;
+    this->settingsWindow = new SettingsWindow(getRenderContext());
     std::cout << "created" << std::endl;
 }
-App::~App() {
+void App::destroy() {
     vkDeviceWaitIdle(device);
+    delete settingsWindow;
     vkDestroyDescriptorPool(device, descriptorPool, nullptr);
     // for (const auto& object : objects) {
     //     object->destroy();
