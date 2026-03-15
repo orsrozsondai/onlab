@@ -19,7 +19,6 @@ int main() {
     App app("PBR");
 
     Pipeline p = Pipeline(app.getRenderContext(), "default.vert","default.frag");
-
     
     std::vector<Vertex> cubeVertices = {
 

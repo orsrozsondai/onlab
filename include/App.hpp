@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Camera.hpp"
+#include "Config.hpp"
 #include "Object.hpp"
 #include "RenderContext.hpp"
 #include "Scene.hpp"
@@ -37,6 +38,9 @@ private:
     VkExtent2D swapchainExtent;
     std::vector<VkImageView> imageViews;
     VkRenderPass renderPass;
+    std::vector<VkImage> colorImages;
+    std::vector<VkDeviceMemory> colorImageMemories;
+    std::vector<VkImageView> colorImageViews;
     std::vector<VkImage> depthImages;
     std::vector<VkDeviceMemory> depthImageMemories;
     std::vector<VkImageView> depthImageViews;
@@ -50,10 +54,10 @@ private:
     VkDescriptorPool descriptorPool;
     SettingsWindow* settingsWindow = nullptr;
     Scene* scene = nullptr;
+    VkSampleCountFlagBits msaaSamples = (VkSampleCountFlagBits) MSAA_SAMPLES;
 
     size_t currentFrame = 0;
 
-    // std::vector<std::unique_ptr<Object>> objects;
 
     glm::vec3 bgcolor =  { 0.05f, 0.05f, 0.1f };
 
@@ -76,16 +80,21 @@ private:
 
     void selectDevice();
 
+    VkSampleCountFlagBits getMaxUsableSampleCount();
+
     void createSwapchain();
 
     void createImageViews();
 
     void createRenderPass();
 
+    void createColorResources();
+
     void createDepthResources();
 
     void createImage(uint32_t width,
         uint32_t height,
+        VkSampleCountFlagBits samples,
         VkFormat format,
         VkImageTiling tiling,
         VkImageUsageFlags usage,

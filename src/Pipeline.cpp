@@ -4,6 +4,7 @@
 #include <fstream>
 #include <array>
 #include <glm/ext/vector_float3.hpp>
+#include <iostream>
 #include <vulkan/vulkan_core.h>
 
 
@@ -69,7 +70,6 @@ void Pipeline::create() {
     assembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
     assembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 
-    // --- Dynamic state ---
     VkDynamicState dynamicStates[] = {
         VK_DYNAMIC_STATE_VIEWPORT,
         VK_DYNAMIC_STATE_SCISSOR
@@ -80,7 +80,6 @@ void Pipeline::create() {
     dynamic.dynamicStateCount = 2;
     dynamic.pDynamicStates = dynamicStates;
 
-    // --- Viewport state (counts only, no data!) ---
     VkPipelineViewportStateCreateInfo viewportState{};
     viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
     viewportState.viewportCount = 1;
@@ -96,7 +95,7 @@ void Pipeline::create() {
 
     VkPipelineMultisampleStateCreateInfo ms{};
     ms.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
-    ms.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+    ms.rasterizationSamples = context.samples;
 
     VkPipelineColorBlendAttachmentState colorBlend{};
     colorBlend.colorWriteMask =
@@ -179,7 +178,6 @@ void Pipeline::create() {
     info.renderPass = context.renderPass;
     info.subpass = 0;
 
-
     if (vkCreateGraphicsPipelines(
         context.device,
         VK_NULL_HANDLE,
@@ -192,7 +190,6 @@ void Pipeline::create() {
     }
     vkDestroyShaderModule(context.device, vertModule, nullptr);
     vkDestroyShaderModule(context.device, fragModule, nullptr);
-
 
 }
 

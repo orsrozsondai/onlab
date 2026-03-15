@@ -6,6 +6,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <glm/ext/matrix_transform.hpp>
 #include <iostream>
 #include <ostream>
@@ -293,6 +294,21 @@ void App::selectDevice() {
 
 }
 
+VkSampleCountFlagBits App::getMaxUsableSampleCount() {
+    VkPhysicalDeviceProperties physicalDeviceProperties;
+    vkGetPhysicalDeviceProperties(physicalDevice, &physicalDeviceProperties);
+
+    VkSampleCountFlags counts = physicalDeviceProperties.limits.framebufferColorSampleCounts & physicalDeviceProperties.limits.framebufferDepthSampleCounts;
+    if (counts & VK_SAMPLE_COUNT_64_BIT) { return VK_SAMPLE_COUNT_64_BIT; }
+    if (counts & VK_SAMPLE_COUNT_32_BIT) { return VK_SAMPLE_COUNT_32_BIT; }
+    if (counts & VK_SAMPLE_COUNT_16_BIT) { return VK_SAMPLE_COUNT_16_BIT; }
+    if (counts & VK_SAMPLE_COUNT_8_BIT) { return VK_SAMPLE_COUNT_8_BIT; }
+    if (counts & VK_SAMPLE_COUNT_4_BIT) { return VK_SAMPLE_COUNT_4_BIT; }
+    if (counts & VK_SAMPLE_COUNT_2_BIT) { return VK_SAMPLE_COUNT_2_BIT; }
+
+    return VK_SAMPLE_COUNT_1_BIT;
+}
+
 void App::createSwapchain() {
     struct SwapchainSupport {
         VkSurfaceCapabilitiesKHR capabilities;
@@ -421,7 +437,6 @@ void App::createSwapchain() {
     if (vkCreateSwapchainKHR(device, &info, nullptr, &swapchain) != VK_SUCCESS) {
         throw std::runtime_error("failed to create swapchain!");
     }
-    // vkGetSwapchainImagesKHR(device, swapchain, &imageCount, nullptr);
 
 }
 
@@ -460,16 +475,16 @@ void App::createImageViews() {
 void App::createRenderPass() {
     VkAttachmentDescription colorAttachment{};
     colorAttachment.format = swapchainFormat;
-    colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+    colorAttachment.samples = msaaSamples;
 
-    colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;   // clear every frame
-    colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE; // keep for presenting
+    colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 
     colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
     colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 
     colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+    colorAttachment.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
     VkAttachmentReference colorRef{};
     colorRef.attachment = 0;
@@ -477,7 +492,7 @@ void App::createRenderPass() {
 
     VkAttachmentDescription depthAttachment{};
     depthAttachment.format = VK_FORMAT_D32_SFLOAT;
-    depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+    depthAttachment.samples = msaaSamples;
     depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
     depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 
@@ -491,25 +506,41 @@ void App::createRenderPass() {
     depthRef.attachment = 1;
     depthRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
+    VkAttachmentDescription resolveAttachment{};
+    resolveAttachment.format = swapchainFormat;
+    resolveAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+    resolveAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    resolveAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    resolveAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    resolveAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    resolveAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    resolveAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+
+    VkAttachmentReference resolveRef{};
+    resolveRef.attachment = 2;
+    resolveRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
     VkSubpassDescription subpass{};
     subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
     subpass.colorAttachmentCount = 1;
     subpass.pColorAttachments = &colorRef;
     subpass.pDepthStencilAttachment = &depthRef;
+    subpass.pResolveAttachments = &resolveRef;
 
     VkSubpassDependency dependency{};
     dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
     dependency.dstSubpass = 0;
 
     dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    dependency.srcAccessMask = 0;
+    dependency.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
 
     dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
     dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
 
-    std::array<VkAttachmentDescription, 2> attachments{};
+    std::array<VkAttachmentDescription, 3> attachments{};
     attachments[0] = colorAttachment;
     attachments[1] = depthAttachment;
+    attachments[2] = resolveAttachment;
 
     VkRenderPassCreateInfo info{};
     info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
@@ -527,6 +558,46 @@ void App::createRenderPass() {
         throw std::runtime_error("failed to create render pass!");
     }
 
+}
+
+void App::createColorResources() {
+    colorImages.resize(imageCount);
+    colorImageMemories.resize(imageCount);
+    colorImageViews.resize(imageCount);
+
+    for (size_t i = 0; i < imageCount; i++) {
+
+        createImage(
+            swapchainExtent.width,
+            swapchainExtent.height,
+            msaaSamples,
+            swapchainFormat,
+            VK_IMAGE_TILING_OPTIMAL,
+            VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT |
+            VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+            colorImages[i],
+            colorImageMemories[i]
+        );
+
+        
+        
+        VkImageViewCreateInfo viewInfo{};
+        viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+        viewInfo.image = colorImages[i];
+        viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+        viewInfo.format = swapchainFormat;
+
+        viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        viewInfo.subresourceRange.baseMipLevel = 0;
+        viewInfo.subresourceRange.levelCount = 1;
+        viewInfo.subresourceRange.baseArrayLayer = 0;
+        viewInfo.subresourceRange.layerCount = 1;
+
+        if (vkCreateImageView(device, &viewInfo, nullptr, &colorImageViews[i]) != VK_SUCCESS) {
+            throw std::runtime_error("failed to create image view!");
+        }
+    }
 }
 
 void App::createDepthResources() {
@@ -561,6 +632,7 @@ void App::createDepthResources() {
         createImage(
             swapchainExtent.width,
             swapchainExtent.height,
+            msaaSamples,
             selFormat,
             VK_IMAGE_TILING_OPTIMAL,
             VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
@@ -592,6 +664,7 @@ void App::createDepthResources() {
 void App::createImage(
     uint32_t width,
     uint32_t height,
+    VkSampleCountFlagBits samples,
     VkFormat format,
     VkImageTiling tiling,
     VkImageUsageFlags usage,
@@ -617,7 +690,7 @@ void App::createImage(
 
     imageInfo.usage = usage;
 
-    imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+    imageInfo.samples = samples;
     imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
     if (vkCreateImage(device, &imageInfo, nullptr, &image) != VK_SUCCESS) {
@@ -661,15 +734,16 @@ void App::createFramebuffers() {
     framebuffers = std::vector<VkFramebuffer>(imageViews.size());
     for (size_t i = 0; i < imageViews.size(); i++) {
         VkImageView attachments[] = {
-            imageViews[i],
-            depthImageViews[i]
+            colorImageViews[i],
+            depthImageViews[i],
+            imageViews[i]
         };
 
         VkFramebufferCreateInfo info{};
         info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
 
         info.renderPass = renderPass;
-        info.attachmentCount = 2;
+        info.attachmentCount = 3;
         info.pAttachments = attachments;
 
         info.width  = swapchainExtent.width;
@@ -809,14 +883,19 @@ App::App(const char* appName, const glm::vec2& windowSize) : framebufferResized(
     initInstance(appName);
     initSurface();
     selectDevice();
+    // check samplecount support
+    VkSampleCountFlagBits max = getMaxUsableSampleCount();
+    if (max < msaaSamples)
+        msaaSamples = max;
+    std::cout << msaaSamples << std::endl;
     createSwapchain();
     createImageViews();
     createRenderPass();
+    createColorResources();
     createDepthResources();
     createFramebuffers();
     createCommandPool();
     createCommandBuffers();
-    // recordCommands();
     createSyncObjects();
     createDescriptorPool();
     
@@ -827,9 +906,6 @@ void App::destroy() {
     vkDeviceWaitIdle(device);
     delete settingsWindow;
     vkDestroyDescriptorPool(device, descriptorPool, nullptr);
-    // for (const auto& object : objects) {
-    //     object->destroy();
-    // }
     scene->destroy();
     for (int i = 0; i < (int)imageCount; i++) {
         vkDestroySemaphore(device, imageAvailable[i], nullptr);
@@ -837,9 +913,6 @@ void App::destroy() {
         vkDestroyFence(device, inFlightFences[i], nullptr);
     }
     vkDestroyCommandPool(device, commandPool, nullptr);
-    // for (const auto& object : objects) {
-    //     object->getPipeline()->destroy();
-    // }
     for (VkFramebuffer fb : framebuffers) {
         vkDestroyFramebuffer(device, fb, nullptr);
     }
@@ -851,6 +924,11 @@ void App::destroy() {
         vkDestroyImageView(device, depthImageViews[i], nullptr);
         vkDestroyImage(device, depthImages[i], nullptr);
         vkFreeMemory(device, depthImageMemories[i], nullptr);
+    }
+    for (size_t i = 0; i < colorImages.size(); i++) {
+        vkDestroyImageView(device, colorImageViews[i], nullptr);
+        vkDestroyImage(device, colorImages[i], nullptr);
+        vkFreeMemory(device, colorImageMemories[i], nullptr);
     }
     vkDestroySwapchainKHR(device, swapchain, nullptr);
     vkDestroyDevice(device, nullptr);
@@ -873,10 +951,7 @@ void App::run() {
         if (settingsWindow != nullptr) {
             settingsWindow->update();
         }
-
-        // for (const auto& object : objects) {
-        //     object->update(*camera);
-        // }
+        
         scene->update();
 
         
@@ -999,12 +1074,18 @@ void App::recreateSwapchain() {
         vkDestroyImage(device, depthImages[i], nullptr);
         vkFreeMemory(device, depthImageMemories[i], nullptr);
     }
+    for (size_t i = 0; i < colorImages.size(); i++) {
+        vkDestroyImageView(device, colorImageViews[i], nullptr);
+        vkDestroyImage(device, colorImages[i], nullptr);
+        vkFreeMemory(device, colorImageMemories[i], nullptr);
+    }
 
     vkDestroySwapchainKHR(device, swapchain, nullptr);
 
 
     createSwapchain();
     createImageViews();
+    createColorResources();
     createDepthResources();
     createFramebuffers();
     recordCommands();
@@ -1019,6 +1100,7 @@ RenderContext App::getRenderContext() const {
         device,
         physicalDevice,
         renderPass,
+        msaaSamples,
         graphicsQueue,
         commandPool, 
         imageCount,
@@ -1041,7 +1123,6 @@ VkCommandPool App::getCommandPool() const {
 void App::setScene(Scene* pScene) {
     scene = pScene;
     settingsWindow->setScene(pScene);
-    // camera->lookAt(scene->selectedObject()->getPosition());
 }
 
 void App::setCamera(Camera* pCamera) {
@@ -1051,10 +1132,6 @@ void App::setCamera(Camera* pCamera) {
 Camera* App::getCamera() const {
     return camera;
 }
-
-// glm::vec2 App::getWindowSize() const {
-//     return {swapchainExtent.width, swapchainExtent.height};
-// }
 
 void App::addSettingsWindow(SettingsWindow* pSettingsWindow) {
     settingsWindow = pSettingsWindow;

@@ -9,6 +9,7 @@ struct RenderContext {
     VkDevice device;
     VkPhysicalDevice physicalDevice;
     VkRenderPass renderPass;
+    VkSampleCountFlagBits samples;
     VkQueue graphicsQueue;
     VkCommandPool commandPool;
     uint32_t imageCount;

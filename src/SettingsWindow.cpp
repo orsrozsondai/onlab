@@ -19,8 +19,7 @@ SettingsWindow::SettingsWindow(const RenderContext& context) : context(context) 
 
 void SettingsWindow::init() {
     IMGUI_CHECKVERSION();
-    ImGuiContext* ctx = ImGui::CreateContext();
-    ImGui::SetCurrentContext(ctx);
+    ImGui::CreateContext();
 
     io = &ImGui::GetIO();
     io->ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
@@ -67,7 +66,7 @@ void SettingsWindow::init() {
     init_info.ImageCount = context.imageCount;
     init_info.PipelineInfoMain.RenderPass = context.renderPass;
     init_info.PipelineInfoMain.Subpass = 0;
-    init_info.PipelineInfoMain.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
+    init_info.PipelineInfoMain.MSAASamples = context.samples;
     ImGui_ImplVulkan_Init(&init_info);
 
 
