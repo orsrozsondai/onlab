@@ -4,8 +4,6 @@
 #include "RenderContext.hpp"
 #include "Scene.hpp"
 #include "imgui.h"
-#include "backends/imgui_impl_glfw.h"
-#include "backends/imgui_impl_vulkan.h"
 #include <vulkan/vulkan_core.h>
 
 
@@ -15,7 +13,7 @@ private:
     VkDescriptorPool descriptorPool;
     ImGuiIO* io;
     Object* object;
-    Scene* scene;
+    Scene* scene = nullptr;
     bool visible = true;
 
 
@@ -27,5 +25,6 @@ public:
     void update();
     void setControlledObject(Object* pObject);
     void toggle();
+    void setScene(Scene* pScene);
     ~SettingsWindow();
 };

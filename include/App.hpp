@@ -65,6 +65,7 @@ private:
     float lastY = 600 / 2.0f;
     bool firstMouse = true;
     float sensitivity = 0.1f;
+    GLFWcursor* dragCursor = nullptr;
 
 
     void initInstance(const char* appName);

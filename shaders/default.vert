@@ -6,13 +6,13 @@ layout(location = 2) in vec3 inTangent;
 layout(location = 0) out vec3 color;
 
 
-layout(set = 0, binding = 0) uniform UniformBufferObject {
+layout(set = 0, binding = 0) uniform MVP {
     mat4 model;
     mat4 view;
     mat4 proj;
-} ubo;
+} mvp;
 
 void main() {
-    gl_Position = ubo.proj * ubo.view * ubo.model * vec4(inPos, 1.0);
+    gl_Position = mvp.proj * mvp.view * mvp.model * vec4(inPos, 1.0);
     color = inNormal/2.0 + vec3(0.5);
 }

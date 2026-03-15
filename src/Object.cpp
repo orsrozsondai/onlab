@@ -3,14 +3,11 @@
 #include "Pipeline.hpp"
 #include "RenderContext.hpp"
 #include "UniformBufferObjects.hpp"
-#include "Vertex.hpp"
 #include <cstdint>
 #include <cstring>
 #include <glm/ext/matrix_float4x4.hpp>
 #include <glm/ext/matrix_transform.hpp>
 #include <glm/ext/vector_float4.hpp>
-#include <iostream>
-#include <ostream>
 #include <stdexcept>
 #include <vector>
 #include <array>
@@ -118,7 +115,6 @@ void Object::uploadIndices() {
 
     vkDestroyBuffer(context.device, stagingBuffer, nullptr);
     vkFreeMemory(context.device, stagingMemory, nullptr);
-
 }
 
 void Object::draw(VkCommandBuffer cmd, size_t frameIndex) const {
@@ -138,14 +134,13 @@ void Object::draw(VkCommandBuffer cmd, size_t frameIndex) const {
     
     vkCmdBindIndexBuffer(cmd, indexBuffer, 0, VK_INDEX_TYPE_UINT32);
     
-    // vkCmdDraw(cmd, vertices.size(), 1, 0, 0);
-    vkCmdDrawIndexed(cmd, static_cast<uint32_t>(mesh->getIndices().size()), 1, 0, 0, 0);
+    vkCmdDrawIndexed(cmd, (mesh->getIndices().size()), 1, 0, 0, 0);
 }
 
 void Object::update(const Camera& camera) {
     mvpUBO.view = camera.view();
     mvpUBO.proj = camera.proj();
-    for (int index = 0; index < context.imageCount; index++) {
+    for (uint32_t index = 0; index < context.imageCount; index++) {
         memcpy(vs_uniformBuffersMapped[index], &mvpUBO, sizeof(MVP_UBO));
         memcpy(fs_uniformBuffersMapped[index], &materialUBO, sizeof(MaterialUBO));
     }

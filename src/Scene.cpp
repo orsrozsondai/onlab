@@ -11,16 +11,9 @@
 
 Scene::Scene(const RenderContext& context, Pipeline* pPipeline, Camera* pCamera) : context(context), pipeline(pPipeline), camera(pCamera) {
     meshes = std::vector<std::unique_ptr<MeshLoader>>();
-    // objects.resize(MAX_OBJECT_COUNT);
     createUniformBuffers();
     createDescriptorSets();
-    // createObjects();
 }
-
-// Object* Scene::addObject(std::unique_ptr<Object> obj) {
-//     objects.push_back(std::move(obj));
-//     return objects.back().get();
-// }
 
 void Scene::addMesh(std::unique_ptr<MeshLoader> mesh) {
     meshes.push_back(std::move(mesh));
@@ -130,21 +123,17 @@ void Scene::createUniformBuffers() {
 }
 
 void Scene::createObjects() {
-    // destroyObjects();
     for (int i = 0; i < MAX_OBJECT_COUNT; i++) {
         Object* obj = new Object(context, pipeline, meshes[meshIndex].get());
-        // std::cout << "object added: " << obj << std::endl;
         objects.push_back(obj);
+        obj->setPosition({2*i-1, 0, 0});
     }
-
-    // std::cout << "create objects" << std::endl;
 }
 
 void Scene::destroyObjects() {
     for (int i = 0; i < MAX_OBJECT_COUNT; i++) {
-        // std::cout << "destroy " << objects[i] << std::endl;
         objects[i]->destroy();
-        delete(objects[i]);
+        delete objects[i];
     }
     objects.clear();
 }
@@ -159,11 +148,13 @@ void Scene::update() {
     
     for (int i = 0; i < currentObjectCount; i++) {
         objects[i]->update(*camera);
-        objects[i]->setPosition({2*i-1, 0, 2*i-1});
-        objects[i]->ubo()->albedo = i==selectedObjectIndex?glm::vec3(1,0,0):glm::vec3(0,0,0);
     }
-    
+
+    for (uint32_t index = 0; index < context.imageCount; index++) {
+        memcpy(uniformBuffersMapped[index], &sceneUBO, sizeof(SceneUBO));
+    }
 }
+
 void Scene::draw(VkCommandBuffer cmd, size_t frameIndex) {
     for (int i = 0; i < currentObjectCount; i++) {
         objects[i]->draw(cmd, frameIndex);
@@ -184,8 +175,8 @@ Object* Scene::selectedObject() {
 
 void Scene::selectObject(int index) {
     selectedObjectIndex = index;
-    std::cout << "selected index: " << selectedObjectIndex << std::endl;
     camera->lookAt(selectedObject()->getPosition());
+
 }
 void Scene::cycleSelected(int dir) {
     if (dir == -1) {
@@ -196,6 +187,7 @@ void Scene::cycleSelected(int dir) {
         selectedObjectIndex++;
         if (selectedObjectIndex == currentObjectCount) selectedObjectIndex = 0;
     }
+    selectObject(selectedObjectIndex);
 }
 
 void Scene::destroy() {

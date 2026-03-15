@@ -7,11 +7,11 @@ Camera::Camera(const glm::vec3& target, float distance, float aspectRatio, float
     : target(target),
       distance(distance),
       aspectRatio(aspectRatio),
-      yaw(90.0f),
-      pitch(20.0f),
       fov(fov),
       nearPlane(0.1f),
-      farPlane(10.f)
+      farPlane(10.f),
+      yaw(90.0f),
+      pitch(20.0f)
 {
     updateView();
     updateProjection();

@@ -4,7 +4,6 @@
 #include "Vertex.hpp"
 #include "tiny_obj_loader.h"
 #include <cstdint>
-#include <iostream>
 #include <stdexcept>
 #include <vector>
 
@@ -86,7 +85,7 @@ void MeshLoader::computeTangents() {
         Vertex& v2 = vertices[indices[i + 2]];
 
         glm::vec3 edge1 = v1.position - v0.position;
-        glm::vec3 edge2 = v2.position - v0.position;
+        // glm::vec3 edge2 = v2.position - v0.position;
 
         glm::vec3 tangent = glm::normalize(edge1);
 

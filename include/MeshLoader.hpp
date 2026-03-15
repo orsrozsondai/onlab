@@ -20,7 +20,7 @@ private:
     void loadOBJ();
     void computeTangents();
 
-    std::string path, name;
     std::vector<Vertex> vertices;
     std::vector<uint32_t> indices;
+    std::string path, name;
 };

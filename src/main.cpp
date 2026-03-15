@@ -1,15 +1,10 @@
 #include "App.hpp"
 #include "Camera.hpp"
 #include "MeshLoader.hpp"
-#include "Object.hpp"
 #include "Pipeline.hpp"
 #include "Scene.hpp"
-#include "SettingsWindow.hpp"
-#include "imgui.h"
 #include <GLFW/glfw3.h>
 #include <cstdlib>
-#include <exception>
-#include <iostream>
 #include <memory>
 #include <sys/types.h>
 #include <utility>
@@ -18,16 +13,11 @@
 
 
 int main() {
-    std::unique_ptr<MeshLoader> skullMesh;
-    skullMesh = std::make_unique<MeshLoader>(MeshLoader("res/models/skull.obj", "Skull"));
+    auto skullMesh = std::make_unique<MeshLoader>(MeshLoader("res/models/skull.obj", "Skull"));
     
 
-    // std::cout << "mesh loaded" << std::endl;
-    
-    
     App app("PBR");
 
-    // std::cout << "app made" << std::endl;
     Pipeline p = Pipeline(app.getRenderContext(), "default.vert","default.frag");
 
     
@@ -99,7 +89,6 @@ int main() {
 
     auto cubeMesh = std::make_unique<MeshLoader>(cubeVertices, cubeIndices, "Cube");
 
-    Object* obj;
     int width, height;
     glfwGetWindowSize(app.getRenderContext().window, &width, &height);
     Camera camera(
@@ -108,20 +97,15 @@ int main() {
         (float)width/height,
         45.0f
     );
-    // std::cout << "camera made" << std::endl;
     Scene scene(app.getRenderContext(), &p, &camera);
-    // std::cout << "scene made" << std::endl;
     scene.addMesh(std::move(cubeMesh));
 
     
-    // std::cout << "mesh added" << std::endl;
     app.setScene(&scene);
     
-    // std::cout << "scene set" << std::endl;
-    
     app.setCamera(&camera);
-        // std::cout << "running" << std::endl;
-        app.run();
+    
+    app.run();
    
     app.destroy();
     return EXIT_SUCCESS;

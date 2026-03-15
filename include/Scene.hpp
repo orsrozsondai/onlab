@@ -18,7 +18,6 @@ private:
     RenderContext context;
     std::vector<Object*> objects;
     SceneUBO sceneUBO;
-    // SettingsWindow settingsWindow;
     std::vector<std::unique_ptr<MeshLoader>> meshes;
     std::vector<VkDescriptorSet> descriptorSets;
     Pipeline* pipeline;

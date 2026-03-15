@@ -1,14 +1,13 @@
 #include "SettingsWindow.hpp"
+#include "Scene.hpp"
 #include "UniformBufferObjects.hpp"
 #include "Object.hpp"
+#include "backends/imgui_impl_vulkan.h"
 #include "imgui.h"
 #include "RenderContext.hpp"
 #include <GLFW/glfw3.h>
-#include <cstddef>
 #include <glm/ext/vector_float3.hpp>
 #include <glm/geometric.hpp>
-#include <iostream>
-#include <ostream>
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <stdexcept>
@@ -16,7 +15,6 @@
 
 SettingsWindow::SettingsWindow(const RenderContext& context) : context(context) {
     init();
-    std::cout << "imgui" << std::endl;
 }
 
 void SettingsWindow::init() {
@@ -25,8 +23,8 @@ void SettingsWindow::init() {
     ImGui::SetCurrentContext(ctx);
 
     io = &ImGui::GetIO();
-    io->ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
-    io->ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
+    io->ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+    io->ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
     io->IniFilename = nullptr;
 
 
@@ -81,11 +79,11 @@ void SettingsWindow::init() {
     // endSingleTimeCommands(cmd);
 
     // ImGui_ImplVulkan_DestroyFontUploadObjects();
-    // std::cout << "imgui init success" << std::endl;
 }
 
 void SettingsWindow::draw(VkCommandBuffer cmd) {
     if (!visible) return;
+    if (!scene) return;
     ImGui_ImplVulkan_RenderDrawData(
         ImGui::GetDrawData(),
         cmd
@@ -94,6 +92,7 @@ void SettingsWindow::draw(VkCommandBuffer cmd) {
 
 void SettingsWindow::update() {
     if (!visible) return;
+    if (!scene) return;
 
     ImGui_ImplVulkan_NewFrame();
     ImGui_ImplGlfw_NewFrame();
@@ -105,25 +104,25 @@ void SettingsWindow::update() {
 
     ImGui::Begin("Settings",nullptr,ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoSavedSettings);
 
-    // MaterialUBO* materialUbo = object->ubo();
-    // SceneUBO* sceneUBO = scene->ubo();
+    MaterialUBO* materialUbo = scene->selectedObject()->ubo();
+    SceneUBO* sceneUBO = scene->ubo();
     
-    // ImGui::Text("Material:");
+    ImGui::Text("Material:");
 
-    // ImGui::ColorEdit3("albedo", glm::value_ptr(materialUbo->albedo));
-    // ImGui::SliderFloat("roughness", &materialUbo->roughness, 0.0f, 1.0f);
-    // ImGui::SliderFloat("metallic", &materialUbo->metallic, 0.0f, 1.0f);
+    ImGui::ColorEdit3("albedo", glm::value_ptr(materialUbo->albedo));
+    ImGui::SliderFloat("roughness", &materialUbo->roughness, 0.0f, 1.0f);
+    ImGui::SliderFloat("metallic", &materialUbo->metallic, 0.0f, 1.0f);
     
 
-    // ImGui::Text("Light:");
+    ImGui::Text("Light:");
 
-    // const char* lightTypes[] = {"directional", "positional"};
-    // int type = (int)sceneUBO->lightPos.w;
-    // if (ImGui::Combo("Type", &type, lightTypes, IM_ARRAYSIZE(lightTypes))) {
-    //     sceneUBO->lightPos.w = (float)type;
-    // }
-    // ImGui::ColorEdit3("color", glm::value_ptr(sceneUBO->lightColor));
-    // ImGui::DragFloat3(type?"position":"direction", glm::value_ptr(sceneUBO->lightPos), type?1.0f:0.01f, 0.01f, type?100.0f:1.0f, type?"%.0f":"%.2f");
+    const char* lightTypes[] = {"directional", "positional"};
+    int type = (int)sceneUBO->lightPos.w;
+    if (ImGui::Combo("Type", &type, lightTypes, IM_ARRAYSIZE(lightTypes))) {
+        sceneUBO->lightPos.w = (float)type;
+    }
+    ImGui::ColorEdit3("color", glm::value_ptr(sceneUBO->lightColor));
+    ImGui::DragFloat3(type?"position":"direction", glm::value_ptr(sceneUBO->lightPos), type?1.0f:0.01f, 0.01f, type?100.0f:1.0f, type?"%.0f":"%.2f");
     
     float textHeight = ImGui::GetTextLineHeightWithSpacing();
 
@@ -150,4 +149,8 @@ SettingsWindow::~SettingsWindow() {
 
 void SettingsWindow::toggle() {
     visible = !visible;
+}
+
+void SettingsWindow::setScene(Scene* pScene) {
+    scene = pScene;
 }

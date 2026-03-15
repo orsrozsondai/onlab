@@ -1,17 +1,13 @@
 #include "App.hpp"
-#include "Object.hpp"
 #include "Pipeline.hpp"
 #include "Scene.hpp"
 #include "SettingsWindow.hpp"
-#include "backends/imgui_impl_glfw.h"
 #include <GLFW/glfw3.h>
 #include <array>
-#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <glm/ext/matrix_transform.hpp>
 #include <iostream>
-#include <memory>
 #include <ostream>
 #include <stdexcept>
 #include <sys/types.h>
@@ -69,6 +65,7 @@ void App::initGLFW(const char* appName, int width, int height) {
     glfwSetScrollCallback(window, scrollCallback);
     glfwSetMouseButtonCallback(window, mouseButtonCallback);
     glfwSetKeyCallback(window, keyCallback);
+    dragCursor = glfwCreateStandardCursor(GLFW_RESIZE_ALL_CURSOR);
 }
 
 void App::framebufferResizeCallback(GLFWwindow* window, int width, int height) {
@@ -166,11 +163,13 @@ void App::handleMouseButton(int button, int action) {
         if (action == GLFW_PRESS)
         {
             rotatingCamera = true;
+            glfwSetCursor(window, dragCursor);
             
         }
         else if (action == GLFW_RELEASE)
         {
             rotatingCamera = false;
+            glfwSetCursor(window, nullptr);
         }
     }
 }
@@ -822,9 +821,9 @@ App::App(const char* appName, const glm::vec2& windowSize) : framebufferResized(
     createDescriptorPool();
     
     this->settingsWindow = new SettingsWindow(getRenderContext());
-    std::cout << "created" << std::endl;
 }
 void App::destroy() {
+    if (dragCursor) glfwDestroyCursor(dragCursor);
     vkDeviceWaitIdle(device);
     delete settingsWindow;
     vkDestroyDescriptorPool(device, descriptorPool, nullptr);
@@ -1041,6 +1040,7 @@ VkCommandPool App::getCommandPool() const {
 
 void App::setScene(Scene* pScene) {
     scene = pScene;
+    settingsWindow->setScene(pScene);
     // camera->lookAt(scene->selectedObject()->getPosition());
 }
 
