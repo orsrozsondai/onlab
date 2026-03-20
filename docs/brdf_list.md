@@ -24,6 +24,7 @@ $ k_d = 1-k_s$
 | Cook–Torrance               | $$ f_s = \frac{D(\mathbf{h}) F(\mathbf{v}, \mathbf{h}) G(\mathbf{l}, \mathbf{v})}{4 (n \cdot l) (n \cdot v)} $$ |
 | Blinn–Phong                 | $$ f_s = \frac{n+2}{2\pi} (n \cdot h)^n $$ |
 | Ward                        | $$ f_s = \frac{1}{4\pi\alpha_x \alpha_y \sqrt{(n\cdot l)(n\cdot v)}} \exp\left(-\frac{\tan^2 \theta_h}{1}\right) $$ (anizotróp, egyszerűsítve) |
+| Disney                      | $$ f_\text{clearcoat} = clearcoat \frac{D_\text{GTR1}(h, \alpha) F_\text{0.04}(v,h) G_\text{Smith}(l,v,h)}{4*(n \cdot l)(n \cdot v)},  α=lerp(0.1,0.001,clearcoatGloss) $$ $$ f_\text{sheen} = sheen \cdot F_\text{sheen}(\omega_i, \omega_o)C_\text{sheen}, C_\text{sheen} = lerp(1, normalize(baseColor), sheenTint) $$ $$ f_r = f_d + f_\text{sCookTorrance} + f_\text{sheen} + f_\text{clearcoat} $$|
 
 ## NDF
 
@@ -31,6 +32,7 @@ $ k_d = 1-k_s$
 |----------------------|----------------|
 | GGX / Trowbridge–Reitz      | $$ D_\text{GGX}(\mathbf{h}) = \frac{\alpha^2}{\pi ((n \cdot h)^2 (\alpha^2 - 1) + 1)^2} $$ |
 | Beckmann NDF                | $$ D_\text{Beckmann}(\mathbf{h}) = \frac{1}{\pi \alpha^2 \cos^4 \theta_h} \exp\left(-\frac{\tan^2 \theta_h}{\alpha^2}\right) $$ |
+| Generalized-Trowbridge-Reitz| $$ D_\text{GTR1} = \frac{c}{\alpha ^ 2 \cos^2 \theta_h + \sin ^2 \theta_h} $$ |
 
 ## Geometry
 
@@ -44,7 +46,6 @@ $ k_d = 1-k_s$
 | Modell               | Képlet         |
 |----------------------|----------------|
 | Schlick Fresnel             | $$ F(\theta) = F_0 + (1 - F_0)(1 - \cos\theta)^5 $$ |
-| Full Fresnel equations      | Dielektrikum: $ R_s = \left\| \frac{n_1 \cos \theta_i - n_2 \cos \theta_t}{n_1 \cos \theta_i + n_2 \cos \theta_t} \right\|^2, \quad R_p = \left\| \frac{n_1 \cos \theta_t - n_2 \cos \theta_i}{n_1 \cos \theta_t + n_2 \cos \theta_i} \right\|^2 $ <br> Teljes visszaverődés: $  R = \frac{R_s + R_p}{2} $ |
 
 ## Jelmagyarázat
 
