@@ -15,7 +15,6 @@
 #include <vector>
 #include <vulkan/vulkan_core.h>
 #include <algorithm>
-#include <glm/gtc/matrix_transform.hpp>
 #include "Config.hpp"
 
 
@@ -138,10 +137,7 @@ void App::scrollCallback(GLFWwindow* window, double xoffset, double yoffset) {
     app->handleScroll(xoffset, yoffset);
 }
 void App::handleScroll(double xoffset, double yoffset) {
-    float newFov = camera->getFov() - (float)yoffset;
-    newFov = glm::clamp(newFov, 20.0f, 90.0f);
-
-    camera->setFov(newFov);
+    camera->zoom(float(yoffset)*0.5f);
 }
 void App::mouseButtonCallback(GLFWwindow* window,
                          int button,
@@ -887,7 +883,7 @@ App::App(const char* appName, const glm::vec2& windowSize) : framebufferResized(
     VkSampleCountFlagBits max = getMaxUsableSampleCount();
     if (max < msaaSamples)
         msaaSamples = max;
-    std::cout << msaaSamples << std::endl;
+    std::cout << "Selected msaa sample count: " << msaaSamples << std::endl;
     createSwapchain();
     createImageViews();
     createRenderPass();
