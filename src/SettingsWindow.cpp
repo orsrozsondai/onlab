@@ -58,6 +58,8 @@ void SettingsWindow::init() {
     if (vkCreateDescriptorPool(context.device, &pool_info, nullptr, &descriptorPool) != VK_SUCCESS) {
         throw std::runtime_error("failed to create descriptor pool");
     }
+
+    initStyle();
     
     ImGui_ImplVulkan_InitInfo init_info{};
     init_info.Instance = context.instance;
@@ -72,15 +74,23 @@ void SettingsWindow::init() {
     init_info.PipelineInfoMain.MSAASamples = context.samples;
     ImGui_ImplVulkan_Init(&init_info);
 
+}
 
+void SettingsWindow::initStyle() {
+    ImFontConfig config;
+    config.OversampleH = 3;
+    config.OversampleV = 3;
+    config.PixelSnapH = false;
+    
+    io->Fonts->AddFontFromFileTTF("res/fonts/OpenSans-B9K8.ttf", 18, &config);
 
-    // VkCommandBuffer cmd = beginSingleTimeCommands();
+    ImGuiStyle& style = ImGui::GetStyle();
+    style.ItemSpacing.y = 1;
 
-    // ImGui_ImplVulkan_CreateFontsTexture(cmd);
-
-    // endSingleTimeCommands(cmd);
-
-    // ImGui_ImplVulkan_DestroyFontUploadObjects();
+    float xscale, yscale;
+    glfwGetWindowContentScale(context.window, &xscale, &yscale);
+    float dpiScale = (xscale + yscale) * 0.5f;
+    io->FontGlobalScale = dpiScale;
 }
 
 void SettingsWindow::draw(VkCommandBuffer cmd) {
@@ -117,75 +127,70 @@ void SettingsWindow::update() {
 
     ImGui::PushItemWidth(-FLT_MIN);
 
-    if (ImGui::CollapsingHeader("Scene", ImGuiTreeNodeFlags_DefaultOpen) ) {
-
-
-        ImGui::Text("Object count:");
-        if (ImGui::SliderInt("##obj_count", &objc, 1, MAX_OBJECT_COUNT)) {
-            scene->setObjectCount(objc);
-        }
-        ImGui::Text("Object distance:");
-        if (ImGui::SliderFloat("##obj_dist", &objd, 1.f, 10.f)) {
-            scene->setObjectDistance(objd);
-        }
+    ImGui::SeparatorText("Scene");
+    ImGui::Text("Object count:");
+    if (ImGui::SliderInt("##obj_count", &objc, 1, MAX_OBJECT_COUNT)) {
+        scene->setObjectCount(objc);
     }
+    ImGui::Text("Object distance:");
+    if (ImGui::SliderFloat("##obj_dist", &objd, 1.f, 10.f)) {
+        scene->setObjectDistance(objd);
+    }
+
+    ImGui::SeparatorText("Material");
+    ImGui::Text("Color:");
+    ImGui::ColorEdit3("##albedo", glm::value_ptr(materialUbo->albedo));
+    ImGui::Text("Roughness:");
+    ImGui::SliderFloat("##roughness", &materialUbo->roughness, 0.0f, 1.0f);
+    ImGui::Text("Metallic:");
+    ImGui::SliderFloat("##metallic", &materialUbo->metallic, 0.0f, 1.0f);
+    ImGui::Text("Sheen:");
+    ImGui::SliderFloat("##sheen", &materialUbo->sheen, 0.0f, 1.0f);
+    ImGui::Text("Sheen Tint:");
+    ImGui::SliderFloat("##sheen_tint", &materialUbo->sheenTint, 0.0f, 1.0f);
+    ImGui::Text("Clearcoat:");
+    ImGui::SliderFloat("##clearcoat", &materialUbo->clearcoat, 0.0f, 1.0f);
+    ImGui::Text("Clearcoat Gloss:");
+    ImGui::SliderFloat("##clearcoat_gloss", &materialUbo->clearcoatGloss, 0.0f, 1.0f);
     
-    if (ImGui::CollapsingHeader("Material", ImGuiTreeNodeFlags_DefaultOpen)) {
-        ImGui::Text("Color:");
-        ImGui::ColorEdit3("##albedo", glm::value_ptr(materialUbo->albedo));
-        ImGui::Text("Roughness:");
-        ImGui::SliderFloat("##roughness", &materialUbo->roughness, 0.0f, 1.0f);
-        ImGui::Text("Metallic:");
-        ImGui::SliderFloat("##metallic", &materialUbo->metallic, 0.0f, 1.0f);
-
-        ImGui::Text("Sheen:");
-        ImGui::SliderFloat("##sheen", &materialUbo->sheen, 0.0f, 1.0f);
-        ImGui::Text("Sheen Tint:");
-        ImGui::SliderFloat("##sheen_tint", &materialUbo->sheenTint, 0.0f, 1.0f);
-        ImGui::Text("Clearcoat:");
-        ImGui::SliderFloat("##clearcoat", &materialUbo->clearcoat, 0.0f, 1.0f);
-        ImGui::Text("Clearcoat Gloss:");
-        ImGui::SliderFloat("##clearcoat_gloss", &materialUbo->clearcoatGloss, 0.0f, 1.0f);
-    }
     
 
-    if (ImGui::CollapsingHeader("Light", ImGuiTreeNodeFlags_DefaultOpen)) {
+    ImGui::SeparatorText("Light");
 
-        ImGui::Text("Type:");
-        if (ImGui::Combo("##light_type", &type, lightTypes, IM_ARRAYSIZE(lightTypes))) {
-            sceneUBO->lightPos.w = (float)type;
-        }
-        ImGui::Text("Color:");
-        ImGui::ColorEdit3("##light_color", glm::value_ptr(sceneUBO->lightColor));
-        if (type) {
-            ImGui::Text("Position:");
-            ImGui::SliderFloat3("##light_pos", glm::value_ptr(sceneUBO->lightPos), -100.0f, 100.0f, "%.0f");
-        }
-        else {
-            ImGui::Text("Direction (Azimuth/Inclination):");
-            float itemWidth = ImGui::CalcItemWidth() - style.FramePadding.x;
-            ImGui::PushItemWidth(itemWidth/2.0);
-            if (ImGui::SliderFloat("##light_dir_azimuth", &lightDir.x, 0.0f, 360.0f, "%.0f")) {
-                float phi = glm::radians(lightDir.y);
-                float theta = glm::radians(lightDir.x);
-                sceneUBO->lightPos.x = sin(phi) * cos(theta);
-                sceneUBO->lightPos.y = cos(phi);
-                sceneUBO->lightPos.z = sin(phi) * sin(theta);
-            };
-            ImGui::SameLine(0,style.FramePadding.x);
-            if (ImGui::SliderFloat("##light_dir_inclination", &lightDir.y, 0.0f, 90.0f, "%.0f")) {
-                float phi = glm::radians(lightDir.y);
-                float theta = glm::radians(lightDir.x);
-                sceneUBO->lightPos.x = sin(phi) * cos(theta);
-                sceneUBO->lightPos.y = cos(phi);
-                sceneUBO->lightPos.z = sin(phi) * sin(theta);
-            };
-            ImGui::PopItemWidth();
-        }
-
-        ImGui::Text("Ambient:");
-        ImGui::ColorEdit3("##ambientlight", glm::value_ptr(sceneUBO->ambientLight));
+    ImGui::Text("Type:");
+    if (ImGui::Combo("##light_type", &type, lightTypes, IM_ARRAYSIZE(lightTypes))) {
+        sceneUBO->lightPos.w = (float)type;
     }
+    ImGui::Text("Color:");
+    ImGui::ColorEdit3("##light_color", glm::value_ptr(sceneUBO->lightColor));
+    if (type) {
+        ImGui::Text("Position:");
+        ImGui::SliderFloat3("##light_pos", glm::value_ptr(sceneUBO->lightPos), -100.0f, 100.0f, "%.0f");
+    }
+    else {
+        ImGui::Text("Direction (Azimuth/Inclination):");
+        float itemWidth = ImGui::CalcItemWidth() - style.FramePadding.x;
+        ImGui::PushItemWidth(itemWidth/2.0);
+        if (ImGui::SliderFloat("##light_dir_azimuth", &lightDir.x, 0.0f, 360.0f, "%.0f")) {
+            float phi = glm::radians(lightDir.y);
+            float theta = glm::radians(lightDir.x);
+            sceneUBO->lightPos.x = sin(phi) * cos(theta);
+            sceneUBO->lightPos.y = cos(phi);
+            sceneUBO->lightPos.z = sin(phi) * sin(theta);
+        };
+        ImGui::SameLine(0,style.FramePadding.x);
+        if (ImGui::SliderFloat("##light_dir_inclination", &lightDir.y, 0.0f, 180.0f, "%.0f")) {
+            float phi = glm::radians(lightDir.y);
+            float theta = glm::radians(lightDir.x);
+            sceneUBO->lightPos.x = sin(phi) * cos(theta);
+            sceneUBO->lightPos.y = cos(phi);
+            sceneUBO->lightPos.z = sin(phi) * sin(theta);
+        };
+        ImGui::PopItemWidth();
+    }
+    ImGui::Text("Ambient:");
+    ImGui::ColorEdit3("##ambientlight", glm::value_ptr(sceneUBO->ambientLight));
+
     float textHeight = ImGui::GetTextLineHeightWithSpacing();
 
     ImGui::SetCursorPosY(height - textHeight - ImGui::GetStyle().WindowPadding.y);

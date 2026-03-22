@@ -18,6 +18,7 @@ private:
 
 
     void init();
+    void initStyle();
 
 public:
     SettingsWindow(const RenderContext& context);
