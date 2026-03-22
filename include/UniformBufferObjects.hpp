@@ -10,10 +10,19 @@ struct MaterialUBO {
     float metallic;
     float roughness;
 
+    float sheen;
+    float sheenTint;
+    float clearcoat;
+    float clearcoatGloss;
+
     MaterialUBO() {
         albedo = {0,0,0};
         metallic = 0;
         roughness = 0;
+        sheen = 0;
+        sheenTint = 0;
+        clearcoat = 0;
+        clearcoatGloss = 0;
     }
 
 };
@@ -21,12 +30,14 @@ struct MaterialUBO {
 struct SceneUBO {
     alignas(16) glm::vec4 lightPos;
     alignas(16) glm::vec3 lightColor;
+    alignas(16) glm::vec3 ambientLight;
 
     alignas(16) glm::vec3 camPos;
 
     SceneUBO() {
         lightPos = {0, -1, 0, 0};
         lightColor = {1, 1, 1};
+        ambientLight = {0, 0, 0};
         camPos = {0, 0, 0};
     }
 };

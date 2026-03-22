@@ -13,6 +13,7 @@
 class Scene {
 private:
     int currentObjectCount = 3;
+    float objectDistance = 2;
     int meshIndex = 0;
     int selectedObjectIndex = 1;
     RenderContext context;
@@ -32,6 +33,7 @@ private:
     void createObjects();
     void destroyObjects();
     void setMeshIndex(int index);
+    void arrangeObjects();
 
 public:
     Scene(const RenderContext& context, Pipeline* pPipeline, Camera* pCamera);
@@ -44,6 +46,8 @@ public:
     Object* selectedObject();
     void selectObject(int index);
     void cycleSelected(int dir); // -1 = left, 1 = right
+    void setObjectCount(int c);
+    void setObjectDistance(float d);
     void destroy();
 
 

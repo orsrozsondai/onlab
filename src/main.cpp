@@ -13,7 +13,7 @@
 
 
 int main() {
-    auto skullMesh = std::make_unique<MeshLoader>(MeshLoader("res/models/skull.obj", "Skull"));
+    auto skullMesh = std::make_unique<MeshLoader>("res/models/skull.obj", "Skull");
     
 
     App app("PBR");
@@ -97,7 +97,7 @@ int main() {
         45.0f
     );
     Scene scene(app.getRenderContext(), &p, &camera);
-    scene.addMesh(std::move(cubeMesh));
+    scene.addMesh(std::move(skullMesh));
 
     
     app.setScene(&scene);

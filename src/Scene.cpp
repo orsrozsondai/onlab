@@ -5,6 +5,8 @@
 #include "Pipeline.hpp"
 #include "RenderContext.hpp"
 #include "UniformBufferObjects.hpp"
+#include <cstddef>
+#include <glm/ext/vector_float3.hpp>
 #include <memory>
 #include <vector>
 #include "Config.hpp"
@@ -126,8 +128,9 @@ void Scene::createObjects() {
     for (int i = 0; i < MAX_OBJECT_COUNT; i++) {
         Object* obj = new Object(context, pipeline, meshes[meshIndex].get());
         objects.push_back(obj);
-        obj->setPosition({2*i-1, 0, 0});
+        obj->ubo()->albedo = glm::vec3((float)(i+1) / (float)(MAX_OBJECT_COUNT+2))*0.2f;
     }
+    arrangeObjects();
 }
 
 void Scene::destroyObjects() {
@@ -174,6 +177,7 @@ Object* Scene::selectedObject() {
 }
 
 void Scene::selectObject(int index) {
+    if (index < 0 || index >= currentObjectCount) return;
     selectedObjectIndex = index;
     camera->lookAt(selectedObject()->getPosition());
 
@@ -187,6 +191,26 @@ void Scene::cycleSelected(int dir) {
         selectedObjectIndex++;
         if (selectedObjectIndex == currentObjectCount) selectedObjectIndex = 0;
     }
+    selectObject(selectedObjectIndex);
+}
+
+void Scene::setObjectCount(int c) {
+    currentObjectCount = c;
+    if (currentObjectCount <= selectedObjectIndex) {
+        selectedObjectIndex = currentObjectCount - 1;
+        selectObject(selectedObjectIndex);
+    }
+}
+
+void Scene::arrangeObjects() {
+    for (size_t i = 0; i < objects.size(); i++) {
+        objects[i]->setPosition({i*objectDistance, 0, 0});
+    }
+}
+
+void Scene::setObjectDistance(float d) {
+    objectDistance = d;
+    arrangeObjects();
     selectObject(selectedObjectIndex);
 }
 

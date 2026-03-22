@@ -1,4 +1,5 @@
 #include "SettingsWindow.hpp"
+#include "Config.hpp"
 #include "Scene.hpp"
 #include "UniformBufferObjects.hpp"
 #include "Object.hpp"
@@ -6,10 +7,12 @@
 #include "imgui.h"
 #include "RenderContext.hpp"
 #include <GLFW/glfw3.h>
+#include <cfloat>
 #include <glm/ext/vector_float3.hpp>
 #include <glm/geometric.hpp>
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include <glm/trigonometric.hpp>
 #include <stdexcept>
 #include <vulkan/vulkan_core.h>
 
@@ -105,29 +108,90 @@ void SettingsWindow::update() {
 
     MaterialUBO* materialUbo = scene->selectedObject()->ubo();
     SceneUBO* sceneUBO = scene->ubo();
-    
-    ImGui::Text("Material:");
+    static int objc = 3;
+    static float objd = 2;
+    static const char* lightTypes[] = {"directional", "positional"};
+    static int type = (int)sceneUBO->lightPos.w;
+    static glm::vec2 lightDir(0,0);
+    ImGuiStyle& style = ImGui::GetStyle();
 
-    ImGui::ColorEdit3("albedo", glm::value_ptr(materialUbo->albedo));
-    ImGui::SliderFloat("roughness", &materialUbo->roughness, 0.0f, 1.0f);
-    ImGui::SliderFloat("metallic", &materialUbo->metallic, 0.0f, 1.0f);
-    
+    ImGui::PushItemWidth(-FLT_MIN);
 
-    ImGui::Text("Light:");
+    if (ImGui::CollapsingHeader("Scene", ImGuiTreeNodeFlags_DefaultOpen) ) {
 
-    const char* lightTypes[] = {"directional", "positional"};
-    int type = (int)sceneUBO->lightPos.w;
-    if (ImGui::Combo("Type", &type, lightTypes, IM_ARRAYSIZE(lightTypes))) {
-        sceneUBO->lightPos.w = (float)type;
+
+        ImGui::Text("Object count:");
+        if (ImGui::SliderInt("##obj_count", &objc, 1, MAX_OBJECT_COUNT)) {
+            scene->setObjectCount(objc);
+        }
+        ImGui::Text("Object distance:");
+        if (ImGui::SliderFloat("##obj_dist", &objd, 1.f, 10.f)) {
+            scene->setObjectDistance(objd);
+        }
     }
-    ImGui::ColorEdit3("color", glm::value_ptr(sceneUBO->lightColor));
-    ImGui::DragFloat3(type?"position":"direction", glm::value_ptr(sceneUBO->lightPos), type?1.0f:0.01f, 0.01f, type?100.0f:1.0f, type?"%.0f":"%.2f");
     
+    if (ImGui::CollapsingHeader("Material", ImGuiTreeNodeFlags_DefaultOpen)) {
+        ImGui::Text("Color:");
+        ImGui::ColorEdit3("##albedo", glm::value_ptr(materialUbo->albedo));
+        ImGui::Text("Roughness:");
+        ImGui::SliderFloat("##roughness", &materialUbo->roughness, 0.0f, 1.0f);
+        ImGui::Text("Metallic:");
+        ImGui::SliderFloat("##metallic", &materialUbo->metallic, 0.0f, 1.0f);
+
+        ImGui::Text("Sheen:");
+        ImGui::SliderFloat("##sheen", &materialUbo->sheen, 0.0f, 1.0f);
+        ImGui::Text("Sheen Tint:");
+        ImGui::SliderFloat("##sheen_tint", &materialUbo->sheenTint, 0.0f, 1.0f);
+        ImGui::Text("Clearcoat:");
+        ImGui::SliderFloat("##clearcoat", &materialUbo->clearcoat, 0.0f, 1.0f);
+        ImGui::Text("Clearcoat Gloss:");
+        ImGui::SliderFloat("##clearcoat_gloss", &materialUbo->clearcoatGloss, 0.0f, 1.0f);
+    }
+    
+
+    if (ImGui::CollapsingHeader("Light", ImGuiTreeNodeFlags_DefaultOpen)) {
+
+        ImGui::Text("Type:");
+        if (ImGui::Combo("##light_type", &type, lightTypes, IM_ARRAYSIZE(lightTypes))) {
+            sceneUBO->lightPos.w = (float)type;
+        }
+        ImGui::Text("Color:");
+        ImGui::ColorEdit3("##light_color", glm::value_ptr(sceneUBO->lightColor));
+        if (type) {
+            ImGui::Text("Position:");
+            ImGui::SliderFloat3("##light_pos", glm::value_ptr(sceneUBO->lightPos), -100.0f, 100.0f, "%.0f");
+        }
+        else {
+            ImGui::Text("Direction (Azimuth/Inclination):");
+            float itemWidth = ImGui::CalcItemWidth() - style.FramePadding.x;
+            ImGui::PushItemWidth(itemWidth/2.0);
+            if (ImGui::SliderFloat("##light_dir_azimuth", &lightDir.x, 0.0f, 360.0f, "%.0f")) {
+                float phi = glm::radians(lightDir.y);
+                float theta = glm::radians(lightDir.x);
+                sceneUBO->lightPos.x = sin(phi) * cos(theta);
+                sceneUBO->lightPos.y = cos(phi);
+                sceneUBO->lightPos.z = sin(phi) * sin(theta);
+            };
+            ImGui::SameLine(0,style.FramePadding.x);
+            if (ImGui::SliderFloat("##light_dir_inclination", &lightDir.y, 0.0f, 90.0f, "%.0f")) {
+                float phi = glm::radians(lightDir.y);
+                float theta = glm::radians(lightDir.x);
+                sceneUBO->lightPos.x = sin(phi) * cos(theta);
+                sceneUBO->lightPos.y = cos(phi);
+                sceneUBO->lightPos.z = sin(phi) * sin(theta);
+            };
+            ImGui::PopItemWidth();
+        }
+
+        ImGui::Text("Ambient:");
+        ImGui::ColorEdit3("##ambientlight", glm::value_ptr(sceneUBO->ambientLight));
+    }
     float textHeight = ImGui::GetTextLineHeightWithSpacing();
 
     ImGui::SetCursorPosY(height - textHeight - ImGui::GetStyle().WindowPadding.y);
 
     ImGui::Text("Window size: %dx%d, FPS: %6.2f",width, height, io->Framerate);
+    ImGui::PopItemWidth();
 
     ImGui::End();
 
