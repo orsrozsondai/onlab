@@ -8,7 +8,9 @@
 #include <cstddef>
 #include <glm/ext/vector_float3.hpp>
 #include <memory>
+#include <array>
 #include <vector>
+#include <vulkan/vulkan_core.h>
 #include "Config.hpp"
 
 Scene::Scene(const RenderContext& context, Pipeline* pPipeline, Camera* pCamera) : context(context), pipeline(pPipeline), camera(pCamera) {
@@ -26,7 +28,7 @@ void Scene::createDescriptorSets() {
     descriptorSets = std::vector<VkDescriptorSet>(context.imageCount);
     std::vector<VkDescriptorSetLayout> layouts(
         context.imageCount,
-        pipeline->getDescriptorSetLayout()
+        pipeline->getDescriptorSetLayouts()[1]
     );
     VkDescriptorSetAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
@@ -51,7 +53,7 @@ void Scene::createDescriptorSets() {
         std::array<VkWriteDescriptorSet, 1> writes{};
         writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         writes[0].dstSet = descriptorSets[i];
-        writes[0].dstBinding = 2; 
+        writes[0].dstBinding = 0; 
         writes[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         writes[0].descriptorCount = 1;
         writes[0].pBufferInfo = &bufferInfo;
@@ -154,11 +156,22 @@ void Scene::update() {
     }
 
     for (uint32_t index = 0; index < context.imageCount; index++) {
+        sceneUBO.camPos = camera->getPosition();
         memcpy(uniformBuffersMapped[index], &sceneUBO, sizeof(SceneUBO));
     }
 }
 
 void Scene::draw(VkCommandBuffer cmd, size_t frameIndex) {
+    vkCmdBindDescriptorSets(
+       cmd,
+       VK_PIPELINE_BIND_POINT_GRAPHICS,
+       pipeline->getPipelineLayout(),
+       1,                     
+       1,
+       &descriptorSets[frameIndex],
+       0,
+       nullptr
+    );
     for (int i = 0; i < currentObjectCount; i++) {
         objects[i]->draw(cmd, frameIndex);
     }

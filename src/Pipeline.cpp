@@ -123,31 +123,40 @@ void Pipeline::create() {
     materialUboLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
     
     VkDescriptorSetLayoutBinding sceneUboLayoutBinding{};
-    sceneUboLayoutBinding.binding = 2;
+    sceneUboLayoutBinding.binding = 0;
     sceneUboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     sceneUboLayoutBinding.descriptorCount = 1;
     sceneUboLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
-    std::array<VkDescriptorSetLayoutBinding, 3> bindings = {
+    std::array<VkDescriptorSetLayoutBinding, 2> bindings = {
         vsUboLayoutBinding,
-        materialUboLayoutBinding,
-        sceneUboLayoutBinding
+        materialUboLayoutBinding
     };
 
-    VkDescriptorSetLayoutCreateInfo descriptorSetLayoutInfo{};
-    descriptorSetLayoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    descriptorSetLayoutInfo.bindingCount = bindings.size();
-    descriptorSetLayoutInfo.pBindings = bindings.data();
+    VkDescriptorSetLayoutCreateInfo descriptorSetLayoutInfo1{};
+    descriptorSetLayoutInfo1.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    descriptorSetLayoutInfo1.bindingCount = bindings.size();
+    descriptorSetLayoutInfo1.pBindings = bindings.data();
 
-    if (vkCreateDescriptorSetLayout(context.device, &descriptorSetLayoutInfo, nullptr, &descriptorSetLayout) != VK_SUCCESS) {
+    VkDescriptorSetLayoutCreateInfo descriptorSetLayoutInfo2{};
+    descriptorSetLayoutInfo2.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    descriptorSetLayoutInfo2.bindingCount = 1;
+    descriptorSetLayoutInfo2.pBindings = &sceneUboLayoutBinding;
+
+    descriptorSetLayouts.resize(2);
+
+    if (vkCreateDescriptorSetLayout(context.device, &descriptorSetLayoutInfo1, nullptr, &descriptorSetLayouts[0]) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create descriptor set layout!");
+    }
+    
+    if (vkCreateDescriptorSetLayout(context.device, &descriptorSetLayoutInfo2, nullptr, &descriptorSetLayouts[1]) != VK_SUCCESS) {
         throw std::runtime_error("failed to create descriptor set layout!");
     }
 
-
     VkPipelineLayoutCreateInfo layoutInfo{};
     layoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-    layoutInfo.setLayoutCount = 1;
-    layoutInfo.pSetLayouts = &descriptorSetLayout;
+    layoutInfo.setLayoutCount = descriptorSetLayouts.size();
+    layoutInfo.pSetLayouts = descriptorSetLayouts.data();
 
     if (vkCreatePipelineLayout(context.device, &layoutInfo, nullptr, &pipelineLayout) != VK_SUCCESS) {
         throw std::runtime_error("failed to create pipeline layout!");
@@ -238,8 +247,10 @@ void Pipeline::destroy() {
         vkDestroyPipelineLayout(context.device, pipelineLayout, nullptr);
         pipelineLayout = VK_NULL_HANDLE;
     }
-    if (descriptorSetLayout != VK_NULL_HANDLE) {
-        vkDestroyDescriptorSetLayout(context.device, descriptorSetLayout, nullptr);
-        descriptorSetLayout = VK_NULL_HANDLE;
+    for (auto descriptorSetLayout : descriptorSetLayouts) {
+        if (descriptorSetLayout != VK_NULL_HANDLE) {
+            vkDestroyDescriptorSetLayout(context.device, descriptorSetLayout, nullptr);
+            descriptorSetLayout = VK_NULL_HANDLE;
+        }
     }
 }

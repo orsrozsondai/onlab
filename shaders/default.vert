@@ -18,7 +18,7 @@ layout(set = 0, binding = 0) uniform MVP {
 void main() {
     gl_Position = mvp.proj * mvp.view * mvp.model * vec4(inPos, 1.0);
     worldPosition = (mvp.model * vec4(inPos, 1.0)).xyz;
-    worldNormal = (mvp.model * vec4(inNormal, 1.0)).xyz;
-    worldTangent = (mvp.model * vec4(inTangent, 1.0)).xyz;
+    worldNormal = normalize(mat3(transpose(inverse(mvp.model))) * inNormal);
+    worldTangent = normalize(mat3(transpose(inverse(mvp.model))) * inTangent);
 
 }

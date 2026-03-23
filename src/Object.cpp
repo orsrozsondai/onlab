@@ -315,7 +315,7 @@ MaterialUBO* Object::ubo() {
 void Object::createDescriptorSets() {
     std::vector<VkDescriptorSetLayout> layouts(
         context.imageCount,
-        pipeline->getDescriptorSetLayout()
+        pipeline->getDescriptorSetLayouts()[0]
     );
 
     VkDescriptorSetAllocateInfo allocInfo{};
