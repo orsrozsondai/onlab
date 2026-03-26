@@ -33,15 +33,14 @@ vec3 F_schlick(vec3 v, vec3 h) {
 }
 
 vec3 fd_lambert(vec3 l) {
-    float ndotl = max(dot(worldNormal, l), 0.0);
+    float ndotl = max(dot(normalize(worldNormal), l), 0.0);
     return material.albedo / PI * ndotl * scene.lightColor;
 }
 
-vec3 fs_blinnphong(vec3 h, vec3 l) {
-    float ndoth = max(dot(worldNormal, h), 0.0);
-    float ndotl = max(dot(worldNormal, l), 0.0);
-    float shininess = pow(2.0, mix(1.0, 11.0, 1.0 - material.roughness));
-    return (shininess + 2) * (0.5/PI) * pow(ndoth, shininess) * F_schlick(l, h) * ndotl * scene.lightColor ;
+vec3 fs_blinnphong(vec3 h) {
+    float ndoth = max(dot(normalize(worldNormal), h), 0.0);
+    float shininess = pow(2.0, mix(1.0, 10.0, 1.0 - material.roughness));
+    return (shininess + 2) * (0.5/PI) * pow(ndoth, shininess) * scene.lightColor ;
 }
 
 void main() {
@@ -54,10 +53,10 @@ void main() {
     vec3 v = normalize(scene.camPos - worldPosition);
     vec3 h = normalize(v+l);
 
-    vec3 color = scene.ambientLight * material.albedo; 
+    vec3 color = scene.ambientLight * material.albedo * 0.1; 
     color += fd_lambert(l);
 
-    color += fs_blinnphong(h,l);
+    color += fs_blinnphong(h) * 0.1 * max(dot(normalize(worldNormal), l), 0);
 
     
 

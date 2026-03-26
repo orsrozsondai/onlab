@@ -15,7 +15,7 @@ private:
     int currentObjectCount = 3;
     float objectDistance = 2;
     int meshIndex = 0;
-    int selectedObjectIndex = 1;
+    int selectedObjectIndex = 0;
     RenderContext context;
     std::vector<Object*> objects;
     SceneUBO sceneUBO;
