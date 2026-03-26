@@ -174,17 +174,17 @@ void SettingsWindow::update() {
         if (ImGui::SliderFloat("##light_dir_azimuth", &lightDir.x, 0.0f, 360.0f, "%.0f")) {
             float phi = glm::radians(lightDir.y);
             float theta = glm::radians(lightDir.x);
-            sceneUBO->lightPos.x = sin(phi) * cos(theta);
-            sceneUBO->lightPos.y = cos(phi);
-            sceneUBO->lightPos.z = sin(phi) * sin(theta);
+            sceneUBO->lightPos.z = -sin(phi) * cos(theta);
+            sceneUBO->lightPos.y = -cos(phi);
+            sceneUBO->lightPos.x = sin(phi) * sin(theta);
         };
         ImGui::SameLine(0,style.FramePadding.x);
         if (ImGui::SliderFloat("##light_dir_inclination", &lightDir.y, 0.0f, 180.0f, "%.0f")) {
             float phi = glm::radians(lightDir.y);
             float theta = glm::radians(lightDir.x);
-            sceneUBO->lightPos.x = sin(phi) * cos(theta);
-            sceneUBO->lightPos.y = cos(phi);
-            sceneUBO->lightPos.z = sin(phi) * sin(theta);
+            sceneUBO->lightPos.z = -sin(phi) * cos(theta);
+            sceneUBO->lightPos.y = -cos(phi);
+            sceneUBO->lightPos.x = sin(phi) * sin(theta);
         };
         ImGui::PopItemWidth();
     }
