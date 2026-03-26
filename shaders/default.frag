@@ -32,9 +32,30 @@ vec3 F_schlick(vec3 v, vec3 h) {
     return F0 + (1.0 - F0) * pow(1.0 - vdoth, 5.0);
 }
 
+float G1(vec3 v) {
+    float k = pow((material.roughness + 1), 2) / 8;
+    float ndotv = max(dot(normalize(worldNormal), v), 0);
+    return max(ndotv / (ndotv * (1-k) + k), 0);
+}
+
+float G_Smith(vec3 l, vec3 v) {
+    return G1(v) * G1(l);
+}
+
+float D_GGX(vec3 h) {
+    float ndoth = max(dot(normalize(worldNormal), h), 0);
+    float alpha2 = pow(material.roughness, 4);
+    return alpha2/max(PI * pow(ndoth*ndoth * (alpha2-1) + 1, 2), 0.00001);
+}
+
+vec3 fs_CookTorrance(vec3 v, vec3 l, vec3 h) {
+    float ndotl = dot(normalize(worldNormal), l);
+    float ndotv = dot(normalize(worldNormal), v);
+    return (D_GGX(h) * F_schlick(v, h) * G_Smith(l, v)) / max(4 * ndotl * ndotv, 0.00001);
+}
+
 vec3 fd_lambert(vec3 l) {
-    float ndotl = max(dot(normalize(worldNormal), l), 0.0);
-    return material.albedo / PI * ndotl * scene.lightColor;
+    return material.albedo / PI;
 }
 
 vec3 fs_blinnphong(vec3 h) {
@@ -53,10 +74,17 @@ void main() {
     vec3 v = normalize(scene.camPos - worldPosition);
     vec3 h = normalize(v+l);
 
-    vec3 color = scene.ambientLight * material.albedo * 0.1; 
-    color += fd_lambert(l);
+    float ndotl = max(dot(normalize(worldNormal), l), 0.0);
 
-    color += fs_blinnphong(h) * 0.1 * max(dot(normalize(worldNormal), l), 0);
+
+    vec3 kD = vec3(1.0) - F_schlick(v, h);
+    kD *= (1.0 - material.metallic);
+
+    vec3 color = scene.ambientLight * material.albedo * 0.1; 
+    color += fd_lambert(l) * ndotl * scene.lightColor * kD;
+
+    // color += fs_blinnphong(h) * 0.1 * ndotl;
+    color += fs_CookTorrance(v, l, h) * ndotl * scene.lightColor;
 
     
 

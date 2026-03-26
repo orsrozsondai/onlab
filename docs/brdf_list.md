@@ -38,7 +38,7 @@ $ k_d = 1-k_s$
 
 | Modell               | Képlet         |
 |----------------------|----------------|
-| Smith                | $$ G_\text{Smith}​(\mathbf{l,v,\alpha})=G_1​(\mathbf{l}) G_1​(\mathbf{v}) $$ $$ G_1(\mathbf{v}) = \frac{n \cdot v}{(n \cdot v)(1-k)+k'}, k=\frac{(\alpha + 1)^2}{8} $$|
+| Smith (UE4)          | $$ G_\text{Smith}​(\mathbf{l,v,\alpha})=G_1​(\mathbf{l}) G_1​(\mathbf{v}) $$ $$ G_1(\mathbf{v}) = \frac{n \cdot v}{(n \cdot v)(1-k)+k}, k=\frac{(\alpha + 1)^2}{8} $$|
 
 
 ## Fresnel
