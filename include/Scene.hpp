@@ -34,6 +34,8 @@ private:
     void destroyObjects();
     void setMeshIndex(int index);
     void arrangeObjects();
+    void interpolateFloat(MaterialParameters param);
+    void interpolateVec3(MaterialParameters param);
 
 public:
     Scene(const RenderContext& context, Pipeline* pPipeline, Camera* pCamera);
@@ -48,6 +50,8 @@ public:
     void cycleSelected(int dir); // -1 = left, 1 = right
     void setObjectCount(int c);
     void setObjectDistance(float d);
+    void interpolate(MaterialParameters param);
+    bool isObjectInterpolated();
     void destroy();
 
 

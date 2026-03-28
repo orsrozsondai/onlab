@@ -4,6 +4,17 @@
 #include <glm/ext/vector_float3.hpp>
 #include <glm/ext/vector_float4.hpp>
 #include <glm/mat4x4.hpp>
+#include <stdexcept>
+
+enum MaterialParameters {
+    ALBEDO = 0,
+    METALLIC = 1,
+    ROUGHNESS = 2,
+    SHEEN = 3,
+    SHEEN_TINT = 4,
+    CLEARCOAT = 5,
+    CLEARCOAT_GLOSS = 6
+};
 
 struct MaterialUBO {
     alignas(16) glm::vec3 albedo;
@@ -23,6 +34,19 @@ struct MaterialUBO {
         sheenTint = 0;
         clearcoat = 0;
         clearcoatGloss = 0;
+    }
+
+    void* get(MaterialParameters param) {
+        switch (param) {
+            case ALBEDO: return &albedo;
+            case METALLIC: return &metallic;
+            case ROUGHNESS: return &roughness;
+            case SHEEN: return &sheen;
+            case SHEEN_TINT: return &sheenTint;
+            case CLEARCOAT: return &clearcoat;
+            case CLEARCOAT_GLOSS: return &clearcoatGloss;
+            default: throw std::runtime_error({"Invalid parameter: %d", param});
+        }
     }
 
 };
@@ -50,3 +74,4 @@ struct MVP_UBO {
         proj = glm::mat4(1.0f);
     }
 };
+

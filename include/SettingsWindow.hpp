@@ -15,6 +15,7 @@ private:
     Object* object;
     Scene* scene = nullptr;
     bool visible = true;
+    std::array<bool, 7> interpolatedParameters = {0,0,0,0,0,0,0};
 
 
     void init();

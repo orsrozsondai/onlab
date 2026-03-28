@@ -227,6 +227,35 @@ void Scene::setObjectDistance(float d) {
     selectObject(selectedObjectIndex);
 }
 
+void Scene::interpolateFloat(MaterialParameters param) {
+    float first = *(float*)objects.front()->ubo()->get(param);
+    float last = *(float*)objects[currentObjectCount-1]->ubo()->get(param);
+    float d = (last - first) / (currentObjectCount - 1);
+    for (size_t i = 1; i < currentObjectCount-1; i++) {
+        float* val = (float*)objects[i]->ubo()->get(param);
+        *val = first + d * i;
+    }
+}
+
+void Scene::interpolateVec3(MaterialParameters param) {
+    glm::vec3 first = *(glm::vec3*)objects.front()->ubo()->get(param);
+    glm::vec3 last = *(glm::vec3*)objects[currentObjectCount-1]->ubo()->get(param);
+    glm::vec3 d = (last - first) / (float)(currentObjectCount - 1);
+    for (size_t i = 1; i < currentObjectCount-1; i++) {
+        glm::vec3* val = (glm::vec3*)objects[i]->ubo()->get(param);
+        *val = first + d * (float)i;
+    }
+}
+
+void Scene::interpolate(MaterialParameters param) {
+    if (param == ALBEDO) interpolateVec3(param);
+    else interpolateFloat(param);
+}
+
+bool Scene::isObjectInterpolated() {
+    return (selectedObjectIndex > 0) & (selectedObjectIndex < currentObjectCount-1);  
+}
+
 void Scene::destroy() {
     destroyObjects();
     for (VkBuffer& buffer : uniformBuffers) {

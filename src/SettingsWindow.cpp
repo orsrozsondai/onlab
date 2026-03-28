@@ -118,6 +118,7 @@ void SettingsWindow::update() {
 
     MaterialUBO* materialUbo = scene->selectedObject()->ubo();
     SceneUBO* sceneUBO = scene->ubo();
+    bool interpolatedObject = scene->isObjectInterpolated();
     static int objc = 3;
     static float objd = 2;
     static const char* lightTypes[] = {"directional", "positional"};
@@ -137,21 +138,69 @@ void SettingsWindow::update() {
         scene->setObjectDistance(objd);
     }
 
+    static bool changed_param = false;
+
     ImGui::SeparatorText("Material");
+    
+    ImGui::PushItemWidth(- ImGui::GetFrameHeight() - style.FramePadding.x);
+
+
+    ImGui::BeginDisabled(interpolatedObject & interpolatedParameters[ALBEDO]);
+    changed_param = false;
     ImGui::Text("Color:");
-    ImGui::ColorEdit3("##albedo", glm::value_ptr(materialUbo->albedo));
+    changed_param = changed_param | ImGui::ColorEdit3("##albedo", glm::value_ptr(materialUbo->albedo));
+    ImGui::SameLine(0, style.FramePadding.x);
+    ImGui::EndDisabled();
+    ImGui::Checkbox("##albedo_lerp", &interpolatedParameters[ALBEDO]);
+
+    ImGui::BeginDisabled(interpolatedObject & interpolatedParameters[ROUGHNESS]);
     ImGui::Text("Roughness:");
-    ImGui::SliderFloat("##roughness", &materialUbo->roughness, 0.0f, 1.0f);
+    changed_param = changed_param | ImGui::SliderFloat("##roughness", &materialUbo->roughness, 0.0f, 1.0f);
+    ImGui::SameLine(0, style.FramePadding.x);
+    ImGui::EndDisabled();
+    ImGui::Checkbox("##roughness_lerp", &interpolatedParameters[ROUGHNESS]);
+    
+    ImGui::BeginDisabled(interpolatedObject & interpolatedParameters[METALLIC]);
     ImGui::Text("Metallic:");
-    ImGui::SliderFloat("##metallic", &materialUbo->metallic, 0.0f, 1.0f);
+    changed_param = changed_param | ImGui::SliderFloat("##metallic", &materialUbo->metallic, 0.0f, 1.0f);
+    ImGui::SameLine(0, style.FramePadding.x);
+    ImGui::EndDisabled();
+    ImGui::Checkbox("##metallic_lerp", &interpolatedParameters[METALLIC]);
+
+    ImGui::BeginDisabled(interpolatedObject & interpolatedParameters[SHEEN]);
     ImGui::Text("Sheen:");
-    ImGui::SliderFloat("##sheen", &materialUbo->sheen, 0.0f, 1.0f);
+    changed_param = changed_param | ImGui::SliderFloat("##sheen", &materialUbo->sheen, 0.0f, 1.0f);
+    ImGui::SameLine(0, style.FramePadding.x);
+    ImGui::EndDisabled();
+    ImGui::Checkbox("##sheen_lerp", &interpolatedParameters[SHEEN]);
+
+    ImGui::BeginDisabled(interpolatedObject & interpolatedParameters[SHEEN_TINT]);
     ImGui::Text("Sheen Tint:");
-    ImGui::SliderFloat("##sheen_tint", &materialUbo->sheenTint, 0.0f, 1.0f);
+    changed_param = changed_param | ImGui::SliderFloat("##sheen_tint", &materialUbo->sheenTint, 0.0f, 1.0f);
+    ImGui::SameLine(0, style.FramePadding.x);
+    ImGui::EndDisabled();
+    ImGui::Checkbox("##sheen_tint_lerp", &interpolatedParameters[SHEEN_TINT]);
+
+    ImGui::BeginDisabled(interpolatedObject & interpolatedParameters[CLEARCOAT]);
     ImGui::Text("Clearcoat:");
-    ImGui::SliderFloat("##clearcoat", &materialUbo->clearcoat, 0.0f, 1.0f);
+    changed_param = changed_param | ImGui::SliderFloat("##clearcoat", &materialUbo->clearcoat, 0.0f, 1.0f);
+    ImGui::SameLine(0, style.FramePadding.x);
+    ImGui::EndDisabled();
+    ImGui::Checkbox("##clearcoat_lerp", &interpolatedParameters[CLEARCOAT]);
+
+    ImGui::BeginDisabled(interpolatedObject & interpolatedParameters[CLEARCOAT_GLOSS]);
     ImGui::Text("Clearcoat Gloss:");
-    ImGui::SliderFloat("##clearcoat_gloss", &materialUbo->clearcoatGloss, 0.0f, 1.0f);
+    changed_param = changed_param | ImGui::SliderFloat("##clearcoat_gloss", &materialUbo->clearcoatGloss, 0.0f, 1.0f);
+    ImGui::SameLine(0, style.FramePadding.x);
+    ImGui::EndDisabled();
+    ImGui::Checkbox("##clearcoat_gloss_lerp", &interpolatedParameters[CLEARCOAT_GLOSS]);
+
+    if (changed_param) {
+        for (size_t i = 0; i < interpolatedParameters.size(); i++) {
+            if (interpolatedParameters[i]) scene->interpolate((MaterialParameters)i);
+        }
+    }
+    ImGui::PopItemWidth();
     
     
 
