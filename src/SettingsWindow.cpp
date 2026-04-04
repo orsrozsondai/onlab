@@ -213,7 +213,7 @@ void SettingsWindow::update() {
     ImGui::Text("Color:");
     ImGui::ColorEdit3("##light_color", glm::value_ptr(sceneUBO->lightColor));
     if (type) {
-        ImGui::Text("Position:");
+        ImGui::Text("Position (x,y,z):");
         ImGui::SliderFloat3("##light_pos", glm::value_ptr(sceneUBO->lightPos), -100.0f, 100.0f, "%.0f");
     }
     else {
@@ -239,6 +239,13 @@ void SettingsWindow::update() {
     }
     ImGui::Text("Ambient:");
     ImGui::ColorEdit3("##ambientlight", glm::value_ptr(sceneUBO->ambientLight));
+
+    ImGui::SeparatorText("Post processing");
+    ImGui::Checkbox("Tone Mapping", &sceneUBO->toneMapping);
+    ImGui::BeginDisabled(!sceneUBO->toneMapping);
+    ImGui::Text("Exposure:");
+    ImGui::SliderFloat("##exposure", &sceneUBO->exposure, 0, 2);
+    ImGui::EndDisabled();
 
     float textHeight = ImGui::GetTextLineHeightWithSpacing();
 

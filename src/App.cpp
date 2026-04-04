@@ -808,19 +808,8 @@ void App::recordCommandBuffer(VkCommandBuffer cmd, int imageIndex) {
         VK_SUBPASS_CONTENTS_INLINE
     );
     
-    scene->getPipeline()->bind(cmd);
-    VkViewport viewport{};
-    viewport.x = 0.0f;
-    viewport.y = 0.0f;
-    viewport.width  = (float)swapchainExtent.width;
-    viewport.height = (float)swapchainExtent.height;
-    viewport.minDepth = 0.0f;
-    viewport.maxDepth = 1.0f;
-    vkCmdSetViewport(cmd, 0, 1, &viewport);
-    VkRect2D scissor{};
-    scissor.offset = { 0, 0 };
-    scissor.extent = swapchainExtent;
-    vkCmdSetScissor(cmd, 0, 1, &scissor);
+    scene->getPipeline()->bind(cmd, swapchainExtent);
+    
     scene->draw(cmd, imageIndex);
     
     if (settingsWindow != nullptr) {
@@ -1110,10 +1099,6 @@ VkExtent2D App::getSwapchainExtent() const {
 
 VkQueue App::getGraphicsQueue() const {
     return graphicsQueue;
-}
-
-VkCommandPool App::getCommandPool() const {
-    return commandPool;
 }
 
 void App::setScene(Scene* pScene) {

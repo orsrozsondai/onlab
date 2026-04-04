@@ -26,7 +26,7 @@ public:
 
     VkPipelineLayout getPipelineLayout() const { return pipelineLayout;}
 
-    void bind(VkCommandBuffer cmd) const;
+    void bind(VkCommandBuffer cmd, const VkExtent2D& extent) const;
 
     void destroy();
 

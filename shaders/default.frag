@@ -23,6 +23,9 @@ layout(set = 1, binding = 0) uniform SceneUBO {
     vec3 ambientLight;
 
     vec3 camPos;
+
+    bool toneMapping;
+    float exposure;
 } scene;
 
 #define PI 3.1415926535
@@ -39,7 +42,7 @@ float G1(vec3 v) {
 }
 
 float G_Smith(vec3 l, vec3 v) {
-    return G1(v) * G1(l);
+    return max(G1(v) * G1(l), 0);
 }
 
 float D_GGX(vec3 h) {
@@ -62,6 +65,14 @@ vec3 fs_blinnphong(vec3 h) {
     float ndoth = max(dot(normalize(worldNormal), h), 0.0);
     float shininess = pow(2.0, mix(1.0, 10.0, 1.0 - material.roughness));
     return (shininess + 2) * (0.5/PI) * pow(ndoth, shininess) * scene.lightColor ;
+}
+vec3 toneMapACES(vec3 x) {
+    float a = 2.51;
+    float b = 0.03;
+    float c = 2.43;
+    float d = 0.59;
+    float e = 0.14;
+    return clamp((x*(a*x+b)) / (x*(c*x+d)+e), 0.0, 1.0);
 }
 
 void main() {
@@ -86,7 +97,11 @@ void main() {
     // color += fs_blinnphong(h) * 0.1 * ndotl;
     color += fs_CookTorrance(v, l, h) * ndotl * scene.lightColor;
 
-    
+
+    if (scene.toneMapping) {
+        color *= scene.exposure;
+        color = toneMapACES(color);
+    }
 
     outColor = vec4(color, 1.0);
 }
