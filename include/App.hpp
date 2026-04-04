@@ -90,16 +90,6 @@ private:
 
     void createDepthResources();
 
-    void createImage(uint32_t width,
-        uint32_t height,
-        VkSampleCountFlagBits samples,
-        VkFormat format,
-        VkImageTiling tiling,
-        VkImageUsageFlags usage,
-        VkMemoryPropertyFlags properties,
-        VkImage& image,
-        VkDeviceMemory& imageMemory);
-
     void createFramebuffers();
 
     void createCommandPool();

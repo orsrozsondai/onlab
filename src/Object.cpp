@@ -3,6 +3,7 @@
 #include "Pipeline.hpp"
 #include "RenderContext.hpp"
 #include "UniformBufferObjects.hpp"
+#include "helpers.hpp"
 #include <cstdint>
 #include <cstring>
 #include <glm/ext/matrix_float4x4.hpp>
@@ -29,6 +30,8 @@ Object::Object(const RenderContext& context, Pipeline* pipeline, MeshLoader* pMe
 void Object::createVertexBuffer() {
     VkDeviceSize size = sizeof(mesh->getVertices()[0]) * mesh->getVertices().size();
     createBuffer(
+        context.device,
+        context.physicalDevice,
         size,
         VK_BUFFER_USAGE_TRANSFER_DST_BIT |
         VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
@@ -41,6 +44,8 @@ void Object::createVertexBuffer() {
 void Object::createIndexBuffer() {
     VkDeviceSize size = sizeof(mesh->getIndices()[0]) * mesh->getIndices().size();
     createBuffer(
+        context.device,
+        context.physicalDevice,
         size,
         VK_BUFFER_USAGE_TRANSFER_DST_BIT |
         VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
@@ -57,6 +62,8 @@ void Object::uploadVertices() {
     VkDeviceMemory stagingMemory;
 
     createBuffer(
+        context.device,
+        context.physicalDevice,
         size,
         VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
@@ -91,6 +98,8 @@ void Object::uploadIndices() {
     VkDeviceMemory stagingMemory;
 
     createBuffer(
+        context.device,
+        context.physicalDevice,
         size,
         VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
@@ -146,105 +155,6 @@ void Object::update(const Camera& camera) {
     }
 }
 
-
-
-void Object::createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory) {
-    VkBufferCreateInfo bufferInfo{};
-    bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-    bufferInfo.size = size;
-    bufferInfo.usage = usage;
-    bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-
-    if (vkCreateBuffer(context.device, &bufferInfo, nullptr, &buffer) != VK_SUCCESS) {
-        throw std::runtime_error("failed to create buffer!");
-    }
-
-    VkMemoryRequirements memRequirements;
-    vkGetBufferMemoryRequirements(context.device, buffer, &memRequirements);
-
-    uint32_t memoryTypeIndex;
-    bool found = false;
-    VkPhysicalDeviceMemoryProperties memProperties;
-    vkGetPhysicalDeviceMemoryProperties(
-        context.physicalDevice,
-        &memProperties
-    );
-
-    for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
-        if ((memRequirements.memoryTypeBits & (1 << i)) &&
-            (memProperties.memoryTypes[i].propertyFlags & properties) == properties) {
-            memoryTypeIndex = i;
-            found = true;
-            break;
-        }
-    }
-
-    if (!found) throw std::runtime_error("failed to find suitable memory type!");
-
-    VkMemoryAllocateInfo allocInfo{};
-    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    allocInfo.allocationSize = memRequirements.size;
-    allocInfo.memoryTypeIndex = memoryTypeIndex;
-
-    if (vkAllocateMemory(context.device, &allocInfo, nullptr, &bufferMemory) != VK_SUCCESS) {
-        throw std::runtime_error("failed to allocate buffer memory!");
-    }
-
-    vkBindBufferMemory(context.device, buffer, bufferMemory, 0);
-}
-
-void Object::copyBuffer(
-    VkDevice device,
-    VkCommandPool commandPool,
-    VkQueue graphicsQueue,
-    VkBuffer srcBuffer,
-    VkBuffer dstBuffer,
-    VkDeviceSize size
-) {
-    
-    VkCommandBufferAllocateInfo allocInfo{};
-    allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-    allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    allocInfo.commandPool = commandPool;
-    allocInfo.commandBufferCount = 1;
-
-    VkCommandBuffer commandBuffer;
-    vkAllocateCommandBuffers(device, &allocInfo, &commandBuffer);
-
-    
-    VkCommandBufferBeginInfo beginInfo{};
-    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-
-    vkBeginCommandBuffer(commandBuffer, &beginInfo);
-
-    
-    VkBufferCopy copyRegion{};
-    copyRegion.srcOffset = 0;
-    copyRegion.dstOffset = 0;
-    copyRegion.size = size;
-
-    vkCmdCopyBuffer(
-        commandBuffer,
-        srcBuffer,
-        dstBuffer,
-        1,
-        &copyRegion
-    );
-
-    vkEndCommandBuffer(commandBuffer);
-
-    
-    VkSubmitInfo submitInfo{};
-    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &commandBuffer;
-
-    vkQueueSubmit(graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
-    vkQueueWaitIdle(graphicsQueue);
-
-    vkFreeCommandBuffers(device, commandPool, 1, &commandBuffer);
-}
 Pipeline* Object::getPipeline() const {
     return pipeline;
 }
@@ -291,7 +201,15 @@ void Object::createUniformBuffers() {
     VkDeviceSize size = sizeof(MVP_UBO);
 
     for (size_t i = 0; i < context.imageCount; i++) {
-        createBuffer(size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, vs_uniformBuffers[i], vs_uniformBuffersMemory[i]);
+        createBuffer(
+            context.device,
+            context.physicalDevice,
+            size,
+            VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+            VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+            vs_uniformBuffers[i],
+            vs_uniformBuffersMemory[i]
+        );
         vkMapMemory(context.device, vs_uniformBuffersMemory[i], 0, size, 0, &vs_uniformBuffersMapped[i]);
 
     }
@@ -302,7 +220,15 @@ void Object::createUniformBuffers() {
     size = sizeof(MaterialUBO);
 
     for (size_t i = 0; i < context.imageCount; i++) {
-        createBuffer(size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, fs_uniformBuffers[i], fs_uniformBuffersMemory[i]);
+        createBuffer(
+            context.device,
+            context.physicalDevice,
+            size,
+            VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+            VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+            fs_uniformBuffers[i],
+            fs_uniformBuffersMemory[i]
+        );
         vkMapMemory(context.device, fs_uniformBuffersMemory[i], 0, size, 0, &fs_uniformBuffersMapped[i]);
 
     }

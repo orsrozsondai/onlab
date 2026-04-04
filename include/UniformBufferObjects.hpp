@@ -26,6 +26,7 @@ struct MaterialUBO {
     float clearcoat;
     float clearcoatGloss;
 
+
     MaterialUBO() {
         albedo = {0,0,0};
         metallic = 0;
@@ -57,12 +58,16 @@ struct SceneUBO {
     alignas(16) glm::vec3 ambientLight;
 
     alignas(16) glm::vec3 camPos;
+    bool toneMapping;
+    float exposure;
 
     SceneUBO() {
         lightPos = {0, -1, 0, 0};
         lightColor = {1, 1, 1};
         ambientLight = {0, 0, 0};
         camPos = {0, 0, 0};
+        toneMapping = 0;
+        exposure = 1;
     }
 };
 

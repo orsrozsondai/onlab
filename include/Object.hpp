@@ -42,10 +42,6 @@ private:
     glm::vec3 position = {0,0,0};
     float scale = 1.0;
 
-    void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory);
-
-    void copyBuffer(VkDevice device, VkCommandPool commandPool, VkQueue graphicsQueue, VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
-
     void createVertexBuffer();
 
     void uploadVertices();
