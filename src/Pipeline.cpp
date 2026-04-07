@@ -1,10 +1,10 @@
 #include "Pipeline.hpp"
 #include "Vertex.hpp"
+#include "helpers.hpp"
 #include <cstdint>
-#include <fstream>
 #include <array>
 #include <glm/ext/vector_float3.hpp>
-#include <iostream>
+#include <stdexcept>
 #include <vulkan/vulkan_core.h>
 
 
@@ -16,8 +16,8 @@ void Pipeline::create() {
     auto vertCode = readFile("build/shaders/" + vert + ".spv");
     auto fragCode = readFile("build/shaders/" + frag + ".spv");
 
-    VkShaderModule vertModule = createShaderModule(vertCode);
-    VkShaderModule fragModule = createShaderModule(fragCode);
+    VkShaderModule vertModule = createShaderModule(context.device, vertCode);
+    VkShaderModule fragModule = createShaderModule(context.device, fragCode);
 
     VkPipelineShaderStageCreateInfo vertStage{};
     vertStage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
@@ -202,7 +202,7 @@ void Pipeline::create() {
 
 }
 
-std::vector<char> Pipeline::readFile(const std::string& path) {
+/* std::vector<char> Pipeline::readFile(const std::string& path) {
     std::ifstream file(path, std::ios::ate | std::ios::binary);
 
     if (!file)
@@ -215,9 +215,9 @@ std::vector<char> Pipeline::readFile(const std::string& path) {
     file.read(buffer.data(), size);
 
     return buffer;
-}
+} */
 
-VkShaderModule Pipeline::createShaderModule(const std::vector<char>& code) {
+/* VkShaderModule Pipeline::createShaderModule(const std::vector<char>& code) {
     VkShaderModuleCreateInfo info{};
     info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
     info.codeSize = code.size();
@@ -230,7 +230,7 @@ VkShaderModule Pipeline::createShaderModule(const std::vector<char>& code) {
     }
 
     return module;
-}
+} */
 
 
 void Pipeline::bind(VkCommandBuffer cmd, const VkExtent2D& extent) const {

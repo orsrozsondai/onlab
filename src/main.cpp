@@ -1,5 +1,6 @@
 #include "App.hpp"
 #include "Camera.hpp"
+#include "EnvMap.hpp"
 #include "MeshLoader.hpp"
 #include "Pipeline.hpp"
 #include "Scene.hpp"
@@ -19,6 +20,8 @@ int main() {
     
 
     App app("PBR");
+
+    EnvMap env(app.getRenderContext(), "res/envmaps/tree_lined_driveway_2k.hdr");
 
     Pipeline p = Pipeline(app.getRenderContext(), "default.vert","default.frag");
     
@@ -99,7 +102,7 @@ int main() {
         45.0f
     );
     Scene scene(app.getRenderContext(), &p, &camera);
-    scene.addMesh(std::move(sphereMesh));
+    scene.addMesh(std::move(skullMesh));
 
     
     app.setScene(&scene);

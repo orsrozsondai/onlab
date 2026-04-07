@@ -15,8 +15,8 @@ private:
     std::vector<VkDescriptorSetLayout> descriptorSetLayouts;
 
     void create();
-    static std::vector<char> readFile(const std::string& path);
-    VkShaderModule createShaderModule(const std::vector<char>& code); 
+    // static std::vector<char> readFile(const std::string& path);
+    // VkShaderModule createShaderModule(const std::vector<char>& code); 
 
 public:
 

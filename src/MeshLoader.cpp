@@ -1,6 +1,5 @@
 #include "MeshLoader.hpp"
 #include <cstddef>
-#define TINYOBJLOADER_IMPLEMENTATION
 #include "Vertex.hpp"
 #include "tiny_obj_loader.h"
 #include <cstdint>
