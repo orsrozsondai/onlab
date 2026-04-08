@@ -1,6 +1,7 @@
 #include "EnvMap.hpp"
 #include "IBLProcessor.hpp"
 #include "RenderContext.hpp"
+#include <GLFW/glfw3.h>
 #include <array>
 #include <cmath>
 #include <stdexcept>
@@ -28,6 +29,11 @@ EnvMap::ImageInfo EnvMap::loadImage() {
 void EnvMap::init() {
     createHDRImage();
     IBLProcessor proc(context, hdrImage);
+    environment = proc.createEnvironmentCubemap();
+    createSamplers();
+    createSkyboxDescriptorSetLayout();
+    createSkyboxPipeline();
+    createSkyboxDescriptor();
 }
 
 void EnvMap::createHDRImage() {
@@ -161,6 +167,18 @@ void EnvMap::createEnvironmentCubemap() {
 
 }
 
+void EnvMap::createSamplers() {
+    sampler = createSampler(
+        context.device,
+        VK_FILTER_LINEAR,
+        VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
+        1.0f,
+        false
+    );
+
+
+}
+
 void EnvMap::createDescriptorSet() {
     std::array<VkDescriptorSetLayoutBinding, 4> bindings{};
 
@@ -258,4 +276,216 @@ void EnvMap::createDescriptorSet() {
     };
 
     vkUpdateDescriptorSets(context.device, writes.size(), writes.data(), 0, nullptr);
+}
+
+void EnvMap::createSkyboxDescriptorSetLayout() {
+    VkDescriptorSetLayoutBinding binding{};
+    binding.binding = 0;
+    binding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    binding.descriptorCount = 1;
+    binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+    VkDescriptorSetLayoutCreateInfo info{};
+    info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    info.bindingCount = 1;
+    info.pBindings = &binding;
+
+    vkCreateDescriptorSetLayout(context.device, &info, nullptr, &skyboxSetLayout);
+}
+
+void EnvMap::createSkyboxDescriptor() {
+    VkDescriptorPoolSize poolSize{};
+    poolSize.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    poolSize.descriptorCount = 1;
+
+    VkDescriptorPoolCreateInfo poolInfo{};
+    poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    poolInfo.maxSets = 1;
+    poolInfo.poolSizeCount = 1;
+    poolInfo.pPoolSizes = &poolSize;
+
+    vkCreateDescriptorPool(context.device, &poolInfo, nullptr, &skyboxDescriptorPool);
+
+    VkDescriptorSetAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    allocInfo.descriptorPool = skyboxDescriptorPool;
+    allocInfo.descriptorSetCount = 1;
+    allocInfo.pSetLayouts = &skyboxSetLayout;
+
+    vkAllocateDescriptorSets(context.device, &allocInfo, &skyboxDescriptorSet);
+
+    VkDescriptorImageInfo imageInfo{};
+    imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    imageInfo.imageView = environment.view;
+    imageInfo.sampler = sampler;
+
+    VkWriteDescriptorSet write{};
+    write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    write.dstSet = skyboxDescriptorSet;
+    write.dstBinding = 0;
+    write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    write.descriptorCount = 1;
+    write.pImageInfo = &imageInfo;
+
+    vkUpdateDescriptorSets(context.device, 1, &write, 0, nullptr);
+}
+
+void EnvMap::createSkyboxPipeline() {
+    auto vertCode = readFile("build/shaders/skybox.vert.spv");
+    auto fragCode = readFile("build/shaders/skybox.frag.spv");
+
+    VkShaderModule vertModule = createShaderModule(context.device, vertCode);
+    VkShaderModule fragModule = createShaderModule(context.device, fragCode);
+
+    VkPipelineShaderStageCreateInfo vertStage{};
+    vertStage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    vertStage.stage = VK_SHADER_STAGE_VERTEX_BIT;
+    vertStage.module = vertModule;
+    vertStage.pName = "main";
+
+    VkPipelineShaderStageCreateInfo fragStage{};
+    fragStage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    fragStage.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+    fragStage.module = fragModule;
+    fragStage.pName = "main";
+
+    VkPipelineShaderStageCreateInfo shaderStages[] = { vertStage, fragStage };
+
+    VkPipelineVertexInputStateCreateInfo vertexInput{};
+    vertexInput.sType                           = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+    vertexInput.vertexBindingDescriptionCount   = 0;
+    vertexInput.pVertexBindingDescriptions      = nullptr;
+    vertexInput.vertexAttributeDescriptionCount = 0;
+    vertexInput.pVertexAttributeDescriptions    = nullptr;
+
+    VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
+    inputAssembly.sType                  = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+    inputAssembly.topology               = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+    inputAssembly.primitiveRestartEnable = VK_FALSE;
+
+    VkDynamicState dynamicStates[] = {
+        VK_DYNAMIC_STATE_VIEWPORT,
+        VK_DYNAMIC_STATE_SCISSOR
+    };
+
+    VkPipelineDynamicStateCreateInfo dynamic{};
+    dynamic.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+    dynamic.dynamicStateCount = 2;
+    dynamic.pDynamicStates = dynamicStates;
+
+    VkPipelineViewportStateCreateInfo viewportState{};
+    viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+    viewportState.viewportCount = 1;
+    viewportState.scissorCount  = 1;
+
+
+    VkPipelineRasterizationStateCreateInfo raster{};
+    raster.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+    raster.polygonMode = VK_POLYGON_MODE_FILL;
+    raster.lineWidth = 1.0f;
+    raster.cullMode = VK_CULL_MODE_NONE;
+    raster.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+
+    VkPipelineMultisampleStateCreateInfo ms{};
+    ms.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+    ms.rasterizationSamples = context.samples;
+
+    VkPipelineColorBlendAttachmentState colorBlend{};
+    colorBlend.colorWriteMask =
+        VK_COLOR_COMPONENT_R_BIT |
+        VK_COLOR_COMPONENT_G_BIT |
+        VK_COLOR_COMPONENT_B_BIT |
+        VK_COLOR_COMPONENT_A_BIT;
+
+    VkPipelineColorBlendStateCreateInfo blend{};
+    blend.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+    blend.attachmentCount = 1;
+    blend.pAttachments = &colorBlend;
+
+    VkPushConstantRange push{};
+    push.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+    push.offset = 0;
+    push.size = sizeof(glm::mat4) * 2;
+
+    VkPipelineLayoutCreateInfo layoutInfo{};
+    layoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    layoutInfo.setLayoutCount = 1;
+    layoutInfo.pSetLayouts = &skyboxSetLayout;
+    layoutInfo.pushConstantRangeCount = 1;
+    layoutInfo.pPushConstantRanges = &push;
+
+    vkCreatePipelineLayout(context.device, &layoutInfo, nullptr, &skyboxPipelineLayout);
+
+    VkPipelineDepthStencilStateCreateInfo depthStencil{};
+    depthStencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+    depthStencil.depthTestEnable = VK_TRUE;
+    depthStencil.depthWriteEnable = VK_FALSE;
+    depthStencil.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
+    depthStencil.depthBoundsTestEnable = VK_FALSE;
+    depthStencil.stencilTestEnable = VK_FALSE;
+
+    VkGraphicsPipelineCreateInfo info{};
+    info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+    info.stageCount = 2;
+    info.pStages = shaderStages;
+    info.pDynamicState = &dynamic;
+    info.pVertexInputState = &vertexInput;
+    info.pInputAssemblyState = &inputAssembly;
+    info.pViewportState = &viewportState;
+    info.pRasterizationState = &raster;
+    info.pMultisampleState = &ms;
+    info.pColorBlendState = &blend;
+    info.pDepthStencilState = &depthStencil;
+
+    info.layout = skyboxPipelineLayout;
+    info.renderPass = context.renderPass;
+    info.subpass = 0;
+
+    if (vkCreateGraphicsPipelines(
+        context.device,
+        VK_NULL_HANDLE,
+        1,
+        &info,
+        nullptr,
+        &skyboxPipeline
+    ) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create pipeline!");
+    }
+    vkDestroyShaderModule(context.device, vertModule, nullptr);
+    vkDestroyShaderModule(context.device, fragModule, nullptr);
+}
+
+void EnvMap::renderSkybox(VkCommandBuffer cmd, VkExtent2D extent, glm::mat4 view, glm::mat4 proj) {
+    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, skyboxPipeline);
+
+    
+    VkViewport viewport{};
+    viewport.x = 0.0f;
+    viewport.y = 0.0f;
+    viewport.width  = (float)extent.width;
+    viewport.height = (float)extent.height;
+    viewport.minDepth = 0.0f;
+    viewport.maxDepth = 1.0f;
+    vkCmdSetViewport(cmd, 0, 1, &viewport);
+    VkRect2D scissor{};
+    scissor.offset = { 0, 0 };
+    scissor.extent = extent;
+    vkCmdSetScissor(cmd, 0, 1, &scissor);
+
+    vkCmdBindDescriptorSets(cmd,
+        VK_PIPELINE_BIND_POINT_GRAPHICS,
+        skyboxPipelineLayout,
+        0, 1,
+        &skyboxDescriptorSet,
+        0, nullptr);
+
+    vkCmdPushConstants(cmd, skyboxPipelineLayout,
+        VK_SHADER_STAGE_VERTEX_BIT,
+        0, sizeof(glm::mat4), &view);
+
+    vkCmdPushConstants(cmd, skyboxPipelineLayout,
+        VK_SHADER_STAGE_VERTEX_BIT,
+        sizeof(glm::mat4), sizeof(glm::mat4), &proj);
+
+    vkCmdDraw(cmd, 36, 1, 0, 0);
 }

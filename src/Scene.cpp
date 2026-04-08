@@ -1,5 +1,6 @@
 #include "Scene.hpp"
 #include "Camera.hpp"
+#include "EnvMap.hpp"
 #include "MeshLoader.hpp"
 #include "Object.hpp"
 #include "Pipeline.hpp"
@@ -161,7 +162,12 @@ void Scene::update() {
     }
 }
 
-void Scene::draw(VkCommandBuffer cmd, size_t frameIndex) {
+void Scene::draw(VkCommandBuffer cmd, VkExtent2D extent, size_t frameIndex) {
+    if (env) {
+        env->renderSkybox(cmd, extent, camera->view(), camera->proj());
+    }
+    pipeline->bind(cmd, extent);
+
     vkCmdBindDescriptorSets(
        cmd,
        VK_PIPELINE_BIND_POINT_GRAPHICS,
@@ -254,6 +260,10 @@ void Scene::interpolate(MaterialParameters param) {
 
 bool Scene::isObjectInterpolated() {
     return (selectedObjectIndex > 0) & (selectedObjectIndex < currentObjectCount-1);  
+}
+
+void Scene::addEnvMap(EnvMap* pEnv) {
+    env = pEnv;
 }
 
 void Scene::destroy() {

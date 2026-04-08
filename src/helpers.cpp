@@ -533,3 +533,50 @@ void endSingleTimeCommands(VkDevice device, VkCommandPool commandPool, VkQueue g
 
     vkFreeCommandBuffers(device, commandPool, 1, &commandBuffer);
 }
+
+VkSampler createSampler(
+    VkDevice device,
+    VkFilter filter,
+    VkSamplerAddressMode addressMode,
+    float maxLod,
+    bool enableAnisotropy
+) {
+    VkSamplerCreateInfo samplerInfo{};
+    samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+
+    // Filtering
+    samplerInfo.magFilter = filter;
+    samplerInfo.minFilter = filter;
+
+    // Addressing
+    samplerInfo.addressModeU = addressMode;
+    samplerInfo.addressModeV = addressMode;
+    samplerInfo.addressModeW = addressMode;
+
+    // Anisotropy
+    samplerInfo.anisotropyEnable = enableAnisotropy ? VK_TRUE : VK_FALSE;
+    samplerInfo.maxAnisotropy = enableAnisotropy ? 16.0f : 1.0f;
+
+    // Coordinates
+    samplerInfo.unnormalizedCoordinates = VK_FALSE;
+
+    // Comparison (not needed here)
+    samplerInfo.compareEnable = VK_FALSE;
+    samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
+
+    // Mipmapping
+    samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+    samplerInfo.minLod = 0.0f;
+    samplerInfo.maxLod = maxLod;
+    samplerInfo.mipLodBias = 0.0f;
+
+    // Border color (only relevant for CLAMP_TO_BORDER)
+    samplerInfo.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
+
+    VkSampler sampler;
+    if (vkCreateSampler(device, &samplerInfo, nullptr, &sampler) != VK_SUCCESS) {
+        throw std::runtime_error("Failed to create sampler!");
+    }
+
+    return sampler;
+}

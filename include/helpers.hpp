@@ -108,3 +108,11 @@ void endSingleTimeCommands(
     VkQueue graphicsQueue,
     VkCommandBuffer commandBuffer
 );
+
+VkSampler createSampler(
+    VkDevice device,
+    VkFilter filter,
+    VkSamplerAddressMode addressMode,
+    float maxLod,
+    bool enableAnisotropy = true
+);

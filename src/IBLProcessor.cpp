@@ -220,7 +220,7 @@ void IBLProcessor::createEqToCubePipeline() {
     rasterizer.rasterizerDiscardEnable = VK_FALSE;
     rasterizer.polygonMode             = VK_POLYGON_MODE_FILL;
     rasterizer.lineWidth               = 1.0f;
-    rasterizer.cullMode                = VK_CULL_MODE_FRONT_BIT; // flip if cube appears inside-out
+    rasterizer.cullMode                = VK_CULL_MODE_NONE; // flip if cube appears inside-out
     rasterizer.frontFace               = VK_FRONT_FACE_COUNTER_CLOCKWISE;
     rasterizer.depthBiasEnable         = VK_FALSE;
 
@@ -306,6 +306,18 @@ GPUImage IBLProcessor::createEnvironmentCubemap() {
         6,
         VK_IMAGE_VIEW_TYPE_CUBE
     );
+
+    transitionImageLayout(
+        context.device,
+        context.commandPool,
+        context.graphicsQueue,
+        cubemap.image,
+        VK_FORMAT_R16G16B16A16_SFLOAT,
+        VK_IMAGE_LAYOUT_UNDEFINED,
+        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+        1,
+        6
+    );
     
 
     std::vector<VkFramebuffer> framebuffers(6);
@@ -314,7 +326,7 @@ GPUImage IBLProcessor::createEnvironmentCubemap() {
             context.device,
             cubemap.image,
             VK_FORMAT_R16G16B16A16_SFLOAT,
-            1,
+            0,
             face
         );
 

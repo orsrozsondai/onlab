@@ -746,9 +746,9 @@ void App::recordCommandBuffer(VkCommandBuffer cmd, int imageIndex) {
         VK_SUBPASS_CONTENTS_INLINE
     );
     
-    scene->getPipeline()->bind(cmd, swapchainExtent);
+    // scene->getPipeline()->bind(cmd, swapchainExtent);
     
-    scene->draw(cmd, imageIndex);
+    scene->draw(cmd, swapchainExtent, imageIndex);
     
     if (settingsWindow != nullptr) {
         settingsWindow->draw((cmd));

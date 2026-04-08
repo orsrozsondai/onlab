@@ -103,6 +103,7 @@ int main() {
     );
     Scene scene(app.getRenderContext(), &p, &camera);
     scene.addMesh(std::move(skullMesh));
+    scene.addEnvMap(&env);
 
     
     app.setScene(&scene);

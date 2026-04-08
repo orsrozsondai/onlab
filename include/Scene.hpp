@@ -4,6 +4,7 @@
 #include <memory>
 #include <vulkan/vulkan_core.h>
 #include "Camera.hpp"
+#include "EnvMap.hpp"
 #include "MeshLoader.hpp"
 #include "Object.hpp"
 #include "Pipeline.hpp"
@@ -26,6 +27,7 @@ private:
     std::vector<VkDeviceMemory> uniformBuffersMemory;
     std::vector<void*> uniformBuffersMapped;
     Camera* camera;
+    EnvMap* env = nullptr;
 
     void createDescriptorSets();
     void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory);
@@ -41,7 +43,7 @@ public:
     Scene(const RenderContext& context, Pipeline* pPipeline, Camera* pCamera);
 
     void update();
-    void draw(VkCommandBuffer cmd, size_t frameIndex);
+    void draw(VkCommandBuffer cmd, VkExtent2D extent, size_t frameIndex);
     void addMesh(std::unique_ptr<MeshLoader> mesh);
     Pipeline* getPipeline() const;
     SceneUBO* ubo();
@@ -52,6 +54,7 @@ public:
     void setObjectDistance(float d);
     void interpolate(MaterialParameters param);
     bool isObjectInterpolated();
+    void addEnvMap(EnvMap* pEnv);
     void destroy();
 
 
