@@ -19,7 +19,7 @@ private:
 
     RenderContext context;
     std::string filePath;
-    static constexpr uint32_t cubeFaceSize = 512;
+    static constexpr uint32_t cubeFaceSize = 1024;
 
     // Images
     GPUImage hdrImage;

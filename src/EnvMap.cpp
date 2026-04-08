@@ -34,6 +34,8 @@ void EnvMap::init() {
     createSkyboxDescriptorSetLayout();
     createSkyboxPipeline();
     createSkyboxDescriptor();
+
+    proc.destroy();
 }
 
 void EnvMap::createHDRImage() {
@@ -488,4 +490,18 @@ void EnvMap::renderSkybox(VkCommandBuffer cmd, VkExtent2D extent, glm::mat4 view
         sizeof(glm::mat4), sizeof(glm::mat4), &proj);
 
     vkCmdDraw(cmd, 36, 1, 0, 0);
+}
+
+void EnvMap::destroy() {
+    vkDeviceWaitIdle(context.device);
+    hdrImage.destroy(context.device);
+    environment.destroy(context.device);
+    irradiance.destroy(context.device);
+    prefilter.destroy(context.device);
+    brdfLUT.destroy(context.device);
+    vkDestroyPipeline(context.device, skyboxPipeline, nullptr);
+    vkDestroyPipelineLayout(context.device, skyboxPipelineLayout, nullptr);
+    vkDestroyDescriptorPool(context.device, skyboxDescriptorPool, nullptr);
+    vkDestroyDescriptorSetLayout(context.device, skyboxSetLayout, nullptr);
+    vkDestroySampler(context.device, sampler, nullptr);
 }

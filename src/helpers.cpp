@@ -6,6 +6,21 @@
 #include <fstream>
 
 
+void GPUImage::destroy(VkDevice device) {
+    if (view != VK_NULL_HANDLE) {
+        vkDestroyImageView(device, view, nullptr);
+        view = VK_NULL_HANDLE;
+    }
+    if (image != VK_NULL_HANDLE) {
+        vkDestroyImage(device, image,nullptr);
+        image = VK_NULL_HANDLE;
+    }
+    if (memory != VK_NULL_HANDLE) {
+        vkFreeMemory(device, memory, nullptr);
+        memory = VK_NULL_HANDLE;
+    }
+}
+
 void copyBuffer(
     VkDevice device,
     VkCommandPool commandPool,

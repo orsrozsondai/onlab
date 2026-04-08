@@ -21,7 +21,7 @@ int main() {
 
     App app("PBR");
 
-    EnvMap env(app.getRenderContext(), "res/envmaps/tree_lined_driveway_2k.hdr");
+    EnvMap env(app.getRenderContext(), "res/envmaps/golden_gate_hills_4k.hdr");
 
     Pipeline p = Pipeline(app.getRenderContext(), "default.vert","default.frag");
     

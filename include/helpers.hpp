@@ -9,6 +9,8 @@ struct GPUImage {
     VkImage image = VK_NULL_HANDLE;
     VkDeviceMemory memory = VK_NULL_HANDLE;
     VkImageView view = VK_NULL_HANDLE;
+
+    void destroy(VkDevice device);
 };
 
 void copyBuffer(

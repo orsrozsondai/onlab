@@ -20,7 +20,7 @@ private:
     VkPipeline irradiancePipeline;
     VkPipeline prefilterPipeline;
     VkPipeline brdfPipeline;
-    static constexpr uint32_t faceSize = 512;
+    static constexpr uint32_t faceSize = 1024;
 
     void createHDRSampler();
     void createEqToCubePipeline();

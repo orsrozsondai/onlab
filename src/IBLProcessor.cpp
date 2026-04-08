@@ -7,6 +7,7 @@
 #include <glm/ext/vector_float3.hpp>
 #include <glm/glm.hpp>
 #include <stdexcept>
+#include <vector>
 #include <vulkan/vulkan_core.h>
 
 IBLProcessor::IBLProcessor(const RenderContext& context, const GPUImage& hdrImage) : context(context), hdrImage(hdrImage) {
@@ -321,8 +322,9 @@ GPUImage IBLProcessor::createEnvironmentCubemap() {
     
 
     std::vector<VkFramebuffer> framebuffers(6);
+    std::vector<VkImageView> faceViews(6);
     for (uint32_t face = 0; face < 6; ++face) {
-        VkImageView faceView = createCubemapFaceView(
+        faceViews[face] = createCubemapFaceView(
             context.device,
             cubemap.image,
             VK_FORMAT_R16G16B16A16_SFLOAT,
@@ -333,7 +335,7 @@ GPUImage IBLProcessor::createEnvironmentCubemap() {
         framebuffers[face] = createFramebuffer(
             context.device,
             renderPass,
-            faceView,
+            faceViews[face],
             faceSize,
             faceSize
         );
@@ -400,5 +402,18 @@ GPUImage IBLProcessor::createEnvironmentCubemap() {
     for (auto fb : framebuffers)
         vkDestroyFramebuffer(context.device, fb, nullptr);
 
+    for (auto fv : faceViews)
+        vkDestroyImageView(context.device, fv, nullptr);
+
     return cubemap;
+}
+
+void IBLProcessor::destroy() {
+    vkDeviceWaitIdle(context.device);
+    vkDestroyPipeline(context.device, eqToCubePipeline, nullptr);
+    vkDestroyPipelineLayout(context.device, hdrPipelineLayout, nullptr);
+    vkDestroyDescriptorPool(context.device, hdrDescriptorPool, nullptr);
+    vkDestroyDescriptorSetLayout(context.device, hdrDescriptorLayout, nullptr);
+    vkDestroyRenderPass(context.device, renderPass, nullptr);
+    vkDestroySampler(context.device, hdrSampler, nullptr);
 }

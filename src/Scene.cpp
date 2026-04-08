@@ -267,6 +267,7 @@ void Scene::addEnvMap(EnvMap* pEnv) {
 }
 
 void Scene::destroy() {
+    if (env) env->destroy();
     destroyObjects();
     for (VkBuffer& buffer : uniformBuffers) {
         if (buffer != VK_NULL_HANDLE) {
