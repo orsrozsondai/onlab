@@ -133,6 +133,24 @@ void Pipeline::create() {
         materialUboLayoutBinding
     };
 
+    std::array<VkDescriptorSetLayoutBinding, 3> iblBindings;
+    iblBindings[0].binding = 0;
+    iblBindings[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    iblBindings[0].descriptorCount = 1;
+    iblBindings[0].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    iblBindings[0].pImmutableSamplers = nullptr;
+    iblBindings[1].binding = 1;
+    iblBindings[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    iblBindings[1].descriptorCount = 1;
+    iblBindings[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    iblBindings[1].pImmutableSamplers = nullptr;
+    iblBindings[2].binding = 2;
+    iblBindings[2].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    iblBindings[2].descriptorCount = 1;
+    iblBindings[2].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    iblBindings[2].pImmutableSamplers = nullptr;
+
+
     VkDescriptorSetLayoutCreateInfo descriptorSetLayoutInfo1{};
     descriptorSetLayoutInfo1.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
     descriptorSetLayoutInfo1.bindingCount = bindings.size();
@@ -143,13 +161,20 @@ void Pipeline::create() {
     descriptorSetLayoutInfo2.bindingCount = 1;
     descriptorSetLayoutInfo2.pBindings = &sceneUboLayoutBinding;
 
-    descriptorSetLayouts.resize(2);
+    VkDescriptorSetLayoutCreateInfo descriptorSetLayoutInfo3{};
+    descriptorSetLayoutInfo3.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    descriptorSetLayoutInfo3.bindingCount = iblBindings.size();
+    descriptorSetLayoutInfo3.pBindings = iblBindings.data();
+
+    descriptorSetLayouts.resize(3);
 
     if (vkCreateDescriptorSetLayout(context.device, &descriptorSetLayoutInfo1, nullptr, &descriptorSetLayouts[0]) != VK_SUCCESS) {
         throw std::runtime_error("failed to create descriptor set layout!");
     }
-    
     if (vkCreateDescriptorSetLayout(context.device, &descriptorSetLayoutInfo2, nullptr, &descriptorSetLayouts[1]) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create descriptor set layout!");
+    }
+    if (vkCreateDescriptorSetLayout(context.device, &descriptorSetLayoutInfo3, nullptr, &descriptorSetLayouts[2]) != VK_SUCCESS) {
         throw std::runtime_error("failed to create descriptor set layout!");
     }
 

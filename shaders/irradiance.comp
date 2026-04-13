@@ -1,0 +1,130 @@
+#version 450
+
+layout(local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
+
+// Input environment cubemap
+layout(set = 0, binding = 0) uniform samplerCube uEnvMap;
+
+// Output irradiance cubemap
+layout(set = 0, binding = 1, rgba16f) writeonly uniform imageCube uIrradiance;
+
+// Optional push constants
+// layout(push_constant) uniform PushConstants {
+//     float faceSize; // not strictly required, but useful if you want LOD control
+// } pc;
+
+// Constants
+const float PI = 3.14159265359;
+
+// Convert cubemap face + uv to direction
+vec3 getDirection(uint face, vec2 uv) {
+    uv = uv * 2.0 - 1.0;
+
+    if (face == 0) return normalize(vec3( 1.0, -uv.y, -uv.x)); // +X
+    if (face == 1) return normalize(vec3(-1.0, -uv.y,  uv.x)); // -X
+    if (face == 2) return normalize(vec3( uv.x,  1.0,  uv.y)); // +Y
+    if (face == 3) return normalize(vec3( uv.x, -1.0, -uv.y)); // -Y
+    if (face == 4) return normalize(vec3( uv.x, -uv.y,  1.0)); // +Z
+    return normalize(vec3(-uv.x, -uv.y, -1.0));                 // -Z
+}
+
+// Cosine-weighted hemisphere sampling (simple version)
+vec3 sampleHemisphere(vec3 N, vec2 Xi) {
+    float phi = 2.0 * PI * Xi.x;
+    float cosTheta = sqrt(1.0 - Xi.y);
+    float sinTheta = sqrt(Xi.y);
+
+    // vec3 T = normalize(abs(N.y) < 0.999 ? cross(vec3(0,1,0), N) : cross(vec3(1,0,0), N));
+    // vec3 B = cross(N, T);
+    vec3 up = abs(N.y) < 0.999 ? vec3(0,1,0) : vec3(1,0,0);
+    vec3 T = normalize(cross(up, N));
+    vec3 B = cross(N, T);
+
+    vec3 sampleVec =
+        T * (cos(phi) * sinTheta) +
+        B * (sin(phi) * sinTheta) +
+        N * cosTheta;
+
+
+    return normalize(sampleVec);
+}
+
+// Hash for random sampling
+// float rand(float n) { return fract(sin(n) * 43758.5453123); }
+float rand(vec2 co)
+{
+    return fract(sin(dot(co, vec2(12.9898,78.233))) * 43758.5453);
+}
+
+float radicalInverse_VdC(uint bits)
+{
+    bits = (bits << 16u) | (bits >> 16u);
+    bits = ((bits & 0x55555555u) << 1u) | ((bits & 0xAAAAAAAAu) >> 1u);
+    bits = ((bits & 0x33333333u) << 2u) | ((bits & 0xCCCCCCCCu) >> 2u);
+    bits = ((bits & 0x0F0F0F0Fu) << 4u) | ((bits & 0xF0F0F0F0u) >> 4u);
+    bits = ((bits & 0x00FF00FFu) << 8u) | ((bits & 0xFF00FF00u) >> 8u);
+    return float(bits) * 2.3283064365386963e-10;
+}
+
+vec2 hammersley(uint i, uint N)
+{
+    return vec2(float(i)/float(N), radicalInverse_VdC(i));
+}
+
+void main() {
+    ivec2 size = imageSize(uIrradiance).xy;
+    ivec2 coord = ivec2(gl_GlobalInvocationID.xy);
+    
+    if (coord.x >= size.x || coord.y >= size.y)
+        return;
+    
+    uint face = gl_GlobalInvocationID.z;
+
+    vec2 uv = (vec2(coord) + 0.5) / vec2(size);
+    vec3 N = getDirection(face, uv);
+
+    const int SAMPLE_COUNT = 1024;
+
+    vec3 irradiance = vec3(0.0);
+
+    /* for (int i = 0; i < SAMPLE_COUNT; i++)
+    {
+        // deterministic pseudo-random sampling
+        // float xi1 = rand(float(i) * 12.9898 + float(coord.x));
+        // float xi2 = rand(float(i) * 78.233  + float(coord.y));
+
+        // vec2 Xi = vec2(xi1, xi2);
+        vec2 Xi = vec2(
+            rand(vec2(coord) + float(i)),
+            rand(vec2(coord) + float(i) * 1.37)
+        );
+
+        vec3 L = sampleHemisphere(N, Xi);
+
+        float NdotL = max(dot(N, L), 0.0);
+
+        // sample environment map
+        vec3 envColor = texture(uEnvMap, L).rgb;
+
+        irradiance += envColor * NdotL;
+    } */
+
+    // const uint SAMPLE_COUNT = 256;
+
+    for (uint i = 0u; i < SAMPLE_COUNT; i++)
+    {
+        vec2 Xi = hammersley(i, SAMPLE_COUNT);
+    
+        vec3 L = sampleHemisphere(N, Xi);
+    
+        vec3 envColor = texture(uEnvMap, L).rgb;
+    // 
+        // irradiance += min(vec3(10), envColor/10);
+        irradiance += envColor / (envColor + vec3(1));
+    }
+    
+    irradiance = PI * irradiance / float(SAMPLE_COUNT);
+ 
+
+    imageStore(uIrradiance, ivec3(coord, int(face)), vec4(irradiance, 1.0));
+}

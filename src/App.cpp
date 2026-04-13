@@ -9,6 +9,7 @@
 #include <cstring>
 #include <glm/ext/matrix_transform.hpp>
 #include <iostream>
+#include <iterator>
 #include <ostream>
 #include <stdexcept>
 #include <sys/types.h>
@@ -213,6 +214,7 @@ void App::selectDevice() {
     for (uint32_t i = 0; i < queueFamilyCount; i++) {
 
         bool graphics = families[i].queueFlags & VK_QUEUE_GRAPHICS_BIT;
+        bool compute = families[i].queueFlags & VK_QUEUE_COMPUTE_BIT;
 
         VkBool32 present = VK_FALSE;
         vkGetPhysicalDeviceSurfaceSupportKHR(
@@ -222,7 +224,7 @@ void App::selectDevice() {
             &present
         );
 
-        if (graphics && present) {
+        if (graphics && compute && present) {
             graphicsFamily = i;
             presentFamily  = i;
             break;
@@ -785,9 +787,12 @@ void App::createSyncObjects() {
 }
 
 void App::createDescriptorPool() {
-    std::array<VkDescriptorPoolSize, 1> poolSizes{};
+    std::array<VkDescriptorPoolSize, 2> poolSizes{};
     poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     poolSizes[0].descriptorCount = imageCount * MAX_OBJECT_COUNT * 4 + imageCount;
+
+    poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    poolSizes[1].descriptorCount = 3;
 
 
     VkDescriptorPoolCreateInfo poolInfo{};

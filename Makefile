@@ -6,6 +6,7 @@ IMGUI_LIB = imgui/libimgui.a
 
 SHADERS = $(patsubst shaders/%.vert, build/shaders/%.vert.spv, $(wildcard shaders/*.vert))
 SHADERS += $(patsubst shaders/%.frag, build/shaders/%.frag.spv, $(wildcard shaders/*.frag))
+SHADERS += $(patsubst shaders/%.comp, build/shaders/%.comp.spv, $(wildcard shaders/*.comp))
 SOURCES = $(wildcard src/*)
 OBJECTS = $(patsubst src/%.cpp, build/%.o, $(SOURCES))
 HEADERS = $(wildcard include/*)

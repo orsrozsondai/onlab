@@ -20,10 +20,11 @@ int main() {
     
 
     App app("PBR");
-
-    EnvMap env(app.getRenderContext(), "res/envmaps/golden_gate_hills_4k.hdr");
-
+    
     Pipeline p = Pipeline(app.getRenderContext(), "default.vert","default.frag");
+
+    EnvMap env(app.getRenderContext(), "res/envmaps/golden_gate_hills_4k.hdr", p.getDescriptorSetLayouts()[2]);
+    
     
     std::vector<Vertex> cubeVertices = {
 
@@ -102,7 +103,7 @@ int main() {
         45.0f
     );
     Scene scene(app.getRenderContext(), &p, &camera);
-    scene.addMesh(std::move(skullMesh));
+    scene.addMesh(std::move(sphereMesh));
     scene.addEnvMap(&env);
 
     

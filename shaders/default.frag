@@ -28,6 +28,10 @@ layout(set = 1, binding = 0) uniform SceneUBO {
     float exposure;
 } scene;
 
+layout(set = 2, binding = 0) uniform samplerCube irradiance;
+layout(set = 2, binding = 1) uniform samplerCube prefilter;
+layout(set = 2, binding = 2) uniform sampler2D brdfLUT;
+
 #define PI 3.1415926535
 vec3 F_schlick(vec3 v, vec3 h) {
     float vdoth = max(dot(v,h), 0.0);
@@ -92,16 +96,21 @@ void main() {
     kD *= (1.0 - material.metallic);
 
     vec3 color = scene.ambientLight * material.albedo * 0.1; 
-    color += fd_lambert(l) * ndotl * scene.lightColor * kD;
+    // color += fd_lambert(l) * ndotl * scene.lightColor * kD;
+
+    color += texture(irradiance, normalize(worldNormal)).rgb * material.albedo;
 
     // color += fs_blinnphong(h) * 0.1 * ndotl;
-    color += fs_CookTorrance(v, l, h) * ndotl * scene.lightColor;
+    // color += fs_CookTorrance(v, l, h) * ndotl * scene.lightColor;
 
 
     if (scene.toneMapping) {
         color *= scene.exposure;
         color = toneMapACES(color);
     }
+    
 
     outColor = vec4(color, 1.0);
+
+  
 }

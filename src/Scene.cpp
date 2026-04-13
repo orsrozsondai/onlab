@@ -18,6 +18,7 @@ Scene::Scene(const RenderContext& context, Pipeline* pPipeline, Camera* pCamera)
     meshes = std::vector<std::unique_ptr<MeshLoader>>();
     createUniformBuffers();
     createDescriptorSets();
+    updateDescriptorSets();
 }
 
 void Scene::addMesh(std::unique_ptr<MeshLoader> mesh) {
@@ -43,6 +44,9 @@ void Scene::createDescriptorSets() {
         descriptorSets.data()
     );
 
+}
+
+void Scene::updateDescriptorSets() {
     for (size_t i = 0; i < context.imageCount; i++)
     {
         VkDescriptorBufferInfo bufferInfo{};
@@ -178,6 +182,10 @@ void Scene::draw(VkCommandBuffer cmd, VkExtent2D extent, size_t frameIndex) {
        0,
        nullptr
     );
+
+    if (env) 
+        env->bindDescriptorSet(cmd, pipeline->getPipelineLayout());
+
     for (int i = 0; i < currentObjectCount; i++) {
         objects[i]->draw(cmd, frameIndex);
     }

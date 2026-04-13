@@ -28,8 +28,10 @@ private:
     std::vector<void*> uniformBuffersMapped;
     Camera* camera;
     EnvMap* env = nullptr;
+    VkDescriptorSet iblDS = VK_NULL_HANDLE;
 
     void createDescriptorSets();
+    void updateDescriptorSets();
     void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory);
     void createUniformBuffers();
     void createObjects();

@@ -6,7 +6,9 @@
 #include <glm/ext/matrix_float4x4.hpp>
 #include <glm/ext/vector_float3.hpp>
 #include <glm/glm.hpp>
+#include <iostream>
 #include <stdexcept>
+#include <string>
 #include <vector>
 #include <vulkan/vulkan_core.h>
 
@@ -18,6 +20,11 @@ IBLProcessor::IBLProcessor(const RenderContext& context, const GPUImage& hdrImag
     allocateHDRDescriptorSet();
     createEqToCubePipeline();
     updateHDRDescriptorSet();
+
+    createCubeSampler();
+    createComputeDSL();
+    createComputePL();
+    irradiancePipeline = createComputePipeline("build/shaders/irradiance.comp.spv");
 }
 
 void IBLProcessor::createRenderPass() {
@@ -95,22 +102,25 @@ void IBLProcessor::createHDRSampler() {
 }
 
 void IBLProcessor::createHDRDescriptorPool() {
-    VkDescriptorPoolSize poolSize{};
-    poolSize.type            = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    poolSize.descriptorCount = 1;
+    VkDescriptorPoolSize poolSizes[2]{};
+    poolSizes[0].type            = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    poolSizes[0].descriptorCount = 10;
+
+    poolSizes[1].type            = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+    poolSizes[1].descriptorCount = 10;
 
     VkDescriptorPoolCreateInfo poolInfo{};
     poolInfo.sType         = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-    poolInfo.poolSizeCount = 1;
-    poolInfo.pPoolSizes    = &poolSize;
-    poolInfo.maxSets       = 1;
+    poolInfo.poolSizeCount = 2;
+    poolInfo.pPoolSizes    = poolSizes;
+    poolInfo.maxSets       = 10;
 
     
     if (vkCreateDescriptorPool(context.device, &poolInfo, nullptr, &hdrDescriptorPool) != VK_SUCCESS) {
         throw std::runtime_error("Failed to create HDR descriptor pool!");
     }
 
-    ;
+    std::cout << hdrDescriptorPool << std::endl;
 }
 
 void IBLProcessor::createHDRDescriptorSetLayout() {
@@ -279,7 +289,6 @@ void IBLProcessor::createEqToCubePipeline() {
 }
 
 GPUImage IBLProcessor::createEnvironmentCubemap() {
-    GPUImage cubemap;
 
     createImage(
         context.device,
@@ -292,15 +301,15 @@ GPUImage IBLProcessor::createEnvironmentCubemap() {
         VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
         VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT,
-        cubemap.image,
-        cubemap.memory,
+        envMap.image,
+        envMap.memory,
         1,
         6 
     );
 
-    cubemap.view = createImageView(
+    envMap.view = createImageView(
         context.device,
-        cubemap.image,
+        envMap.image,
         VK_FORMAT_R16G16B16A16_SFLOAT,
         VK_IMAGE_ASPECT_COLOR_BIT,
         1,
@@ -312,7 +321,7 @@ GPUImage IBLProcessor::createEnvironmentCubemap() {
         context.device,
         context.commandPool,
         context.graphicsQueue,
-        cubemap.image,
+        envMap.image,
         VK_FORMAT_R16G16B16A16_SFLOAT,
         VK_IMAGE_LAYOUT_UNDEFINED,
         VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
@@ -326,7 +335,7 @@ GPUImage IBLProcessor::createEnvironmentCubemap() {
     for (uint32_t face = 0; face < 6; ++face) {
         faceViews[face] = createCubemapFaceView(
             context.device,
-            cubemap.image,
+            envMap.image,
             VK_FORMAT_R16G16B16A16_SFLOAT,
             0,
             face
@@ -390,7 +399,7 @@ GPUImage IBLProcessor::createEnvironmentCubemap() {
         context.device,
         context.commandPool,
         context.graphicsQueue,
-        cubemap.image,
+        envMap.image,
         VK_FORMAT_R16G16B16A16_SFLOAT,
         VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
         VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
@@ -405,7 +414,365 @@ GPUImage IBLProcessor::createEnvironmentCubemap() {
     for (auto fv : faceViews)
         vkDestroyImageView(context.device, fv, nullptr);
 
-    return cubemap;
+    return envMap;
+}
+
+void IBLProcessor::createComputeDSL() {
+    VkDescriptorSetLayoutBinding bindings[2]{};
+
+    // Input cubemap
+    bindings[0].binding = 0;
+    bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    bindings[0].descriptorCount = 1;
+    bindings[0].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+
+    // Output image
+    bindings[1].binding = 1;
+    bindings[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+    bindings[1].descriptorCount = 1;
+    bindings[1].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+
+    VkDescriptorSetLayoutCreateInfo ci{ VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
+    ci.bindingCount = 2;
+    ci.pBindings = bindings;
+
+    if (vkCreateDescriptorSetLayout(context.device, &ci, nullptr, &computeDSL) != VK_SUCCESS) {
+        throw std::runtime_error("Failed to create compute descriptor set layout");
+    }
+}
+
+void IBLProcessor::createComputePL() {
+    VkPushConstantRange push{};
+    push.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+    push.offset = 0;
+    push.size = sizeof(computePC);
+
+    VkPipelineLayoutCreateInfo ci{ VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
+    ci.setLayoutCount = 1;
+    ci.pSetLayouts = &computeDSL;
+    ci.pushConstantRangeCount = 1;
+    ci.pPushConstantRanges = &push;
+
+    if (vkCreatePipelineLayout(context.device, &ci, nullptr, &computePL) != VK_SUCCESS) {
+        throw std::runtime_error("Failed to create compute pipeline layout");
+    }
+}
+
+VkPipeline IBLProcessor::createComputePipeline(const std::string& path) {
+    VkPipeline pipeline;
+    auto code = readFile(path);
+    VkShaderModule module = createShaderModule(context.device, code);
+
+    VkPipelineShaderStageCreateInfo stage{};
+    stage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    stage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
+    stage.module = module;
+    stage.pName = "main";
+
+    VkComputePipelineCreateInfo ci{ VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO };
+    ci.stage = stage;
+    ci.layout = computePL;
+
+    if (vkCreateComputePipelines(context.device, VK_NULL_HANDLE, 1, &ci, nullptr, &pipeline) != VK_SUCCESS) {
+        throw std::runtime_error("Failed to create compute pipeline");
+    }
+    vkDestroyShaderModule(context.device, module, nullptr);
+    return pipeline;
+}
+
+void IBLProcessor::createCubeSampler() {
+    VkSamplerCreateInfo ci{ VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
+
+    // Filtering (important for HDRI smoothness)
+    ci.magFilter = VK_FILTER_LINEAR;
+    ci.minFilter = VK_FILTER_LINEAR;
+
+    // Mipmap filtering (critical for prefilter map)
+    ci.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+
+    // Addressing mode (cubemap MUST use CLAMP_TO_EDGE)
+    ci.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    ci.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    ci.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+
+    // No anisotropy for cubemaps (not useful here)
+    ci.anisotropyEnable = VK_FALSE;
+
+    // LOD control (important for IBL smoothness)
+    ci.minLod = 0.0f;
+    ci.maxLod = VK_LOD_CLAMP_NONE;
+    ci.mipLodBias = 0.0f;
+
+    // No comparison sampling
+    ci.compareEnable = VK_FALSE;
+    ci.compareOp = VK_COMPARE_OP_ALWAYS;
+
+    // Border color not used (since we clamp)
+    ci.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK;
+
+    // Cubemap coordinates are normalized
+    ci.unnormalizedCoordinates = VK_FALSE;
+
+    VkResult result = vkCreateSampler(
+        context.device,
+        &ci,
+        nullptr,
+        &cubeSampler
+    );
+
+    if (result != VK_SUCCESS) {
+        throw std::runtime_error("Failed to create cube sampler!");
+    }
+
+}
+
+VkDescriptorSet IBLProcessor::allocateComputeDS(const GPUImage& input, const GPUImage& output) {
+    VkDescriptorSetAllocateInfo ai{ VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
+    ai.descriptorPool = hdrDescriptorPool;
+    ai.descriptorSetCount = 1;
+    ai.pSetLayouts = &computeDSL;
+
+    VkDescriptorSet ds;
+    if (vkAllocateDescriptorSets(context.device, &ai, &ds) != VK_SUCCESS) {
+        throw std::runtime_error("Failed to allocate descriptor set");
+    }
+
+    // Input cubemap
+    VkDescriptorImageInfo inputInfo{};
+    inputInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    inputInfo.imageView = input.view;
+    inputInfo.sampler = cubeSampler;
+
+    // Output image
+    VkDescriptorImageInfo outputInfo{};
+    outputInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+    outputInfo.imageView = output.view;
+
+    VkWriteDescriptorSet writes[2]{};
+
+    writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    writes[0].dstSet = ds;
+    writes[0].dstBinding = 0;
+    writes[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    writes[0].descriptorCount = 1;
+    writes[0].pImageInfo = &inputInfo;
+
+    writes[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    writes[1].dstSet = ds;
+    writes[1].dstBinding = 1;
+    writes[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+    writes[1].descriptorCount = 1;
+    writes[1].pImageInfo = &outputInfo;
+
+    vkUpdateDescriptorSets(context.device, 2, writes, 0, nullptr);
+    return ds;
+}
+
+
+
+GPUImage IBLProcessor::createIrradianceMap() {
+    GPUImage irradianceMap;
+    createImage(
+        context.device,
+        context.physicalDevice,
+        64,
+        64,
+        VK_SAMPLE_COUNT_1_BIT,
+        VK_FORMAT_R16G16B16A16_SFLOAT,
+        VK_IMAGE_TILING_OPTIMAL,
+        VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+        VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT,
+        irradianceMap.image,
+        irradianceMap.memory,
+        1,
+        6
+    );
+
+    irradianceMap.view = createImageView(
+        context.device,
+        irradianceMap.image,
+        VK_FORMAT_R16G16B16A16_SFLOAT,
+        VK_IMAGE_ASPECT_COLOR_BIT,
+        1,
+        6,
+        VK_IMAGE_VIEW_TYPE_CUBE
+    );
+
+    transitionImageLayout(
+        context.device, 
+        context.commandPool,
+        context.graphicsQueue, 
+        irradianceMap.image, 
+        VK_FORMAT_R16G16B16A16_SFLOAT,
+        VK_IMAGE_LAYOUT_UNDEFINED,
+        VK_IMAGE_LAYOUT_GENERAL,
+        1,
+        6
+    );
+
+
+    irradianceDS = allocateComputeDS(envMap, irradianceMap);
+    
+    VkCommandBuffer cmd = beginSingleTimeCommands(context.device, context.commandPool);
+
+    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, irradiancePipeline);
+    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, computePL, 0, 1, &irradianceDS, 0, nullptr);
+
+    computePC pc{};
+    pc.roughness = 0.0f;
+    pc.faceSize = faceSize;
+
+    vkCmdPushConstants(cmd, computePL, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(pc), &pc);
+
+    vkCmdDispatch(cmd, (faceSize + 7) / 8, (faceSize + 7) / 8, 6); // 6 for cubemap
+
+
+    VkMemoryBarrier barrier{ VK_STRUCTURE_TYPE_MEMORY_BARRIER };
+    barrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+    barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+    vkCmdPipelineBarrier(
+        cmd,
+        VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+        VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+        0,
+        1, &barrier,
+        0, nullptr,
+        0, nullptr
+    );
+
+    endSingleTimeCommands(context.device, context.commandPool, context.graphicsQueue, cmd);
+
+    transitionImageLayout(
+        context.device, 
+        context.commandPool,
+        context.graphicsQueue, 
+        irradianceMap.image, 
+        VK_FORMAT_R16G16B16A16_SFLOAT,
+        VK_IMAGE_LAYOUT_GENERAL,
+        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+        1,
+        6
+    );
+
+    return irradianceMap;
+}
+
+GPUImage IBLProcessor::createPrefilterMap() {
+    GPUImage prefilterMap;
+    createImage(
+        context.device,
+        context.physicalDevice,
+        64,
+        64,
+        VK_SAMPLE_COUNT_1_BIT,
+        VK_FORMAT_R16G16B16A16_SFLOAT,
+        VK_IMAGE_TILING_OPTIMAL,
+        VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+        VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT,
+        prefilterMap.image,
+        prefilterMap.memory,
+        1,
+        6
+    );
+
+    prefilterMap.view = createImageView(
+        context.device,
+        prefilterMap.image,
+        VK_FORMAT_R16G16B16A16_SFLOAT,
+        VK_IMAGE_ASPECT_COLOR_BIT,
+        1,
+        6,
+        VK_IMAGE_VIEW_TYPE_CUBE
+    );
+
+    transitionImageLayout(
+        context.device, 
+        context.commandPool,
+        context.graphicsQueue, 
+        prefilterMap.image, 
+        VK_FORMAT_R16G16B16A16_SFLOAT,
+        VK_IMAGE_LAYOUT_UNDEFINED,
+        VK_IMAGE_LAYOUT_GENERAL,
+        1,
+        6
+    );
+
+    //TODO: dispatch compute
+
+    transitionImageLayout(
+        context.device, 
+        context.commandPool,
+        context.graphicsQueue, 
+        prefilterMap.image, 
+        VK_FORMAT_R16G16B16A16_SFLOAT,
+        VK_IMAGE_LAYOUT_GENERAL,
+        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+        1,
+        6
+    );
+
+    return prefilterMap;
+}
+
+GPUImage IBLProcessor::createBRDFLUT() {
+    GPUImage brdfLUT;
+    createImage(
+        context.device,
+        context.physicalDevice,
+        64,
+        64,
+        VK_SAMPLE_COUNT_1_BIT,
+        VK_FORMAT_R16G16B16A16_SFLOAT,
+        VK_IMAGE_TILING_OPTIMAL,
+        VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+        VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT,
+        brdfLUT.image,
+        brdfLUT.memory,
+        1,
+        6
+    );
+
+    brdfLUT.view = createImageView(
+        context.device,
+        brdfLUT.image,
+        VK_FORMAT_R16G16B16A16_SFLOAT,
+        VK_IMAGE_ASPECT_COLOR_BIT,
+        1,
+        6,
+        VK_IMAGE_VIEW_TYPE_CUBE
+    );
+
+    transitionImageLayout(
+        context.device, 
+        context.commandPool,
+        context.graphicsQueue, 
+        brdfLUT.image, 
+        VK_FORMAT_R16G16B16A16_SFLOAT,
+        VK_IMAGE_LAYOUT_UNDEFINED,
+        VK_IMAGE_LAYOUT_GENERAL,
+        1,
+        6
+    );
+
+    //TODO: dispatch compute
+
+    transitionImageLayout(
+        context.device, 
+        context.commandPool,
+        context.graphicsQueue, 
+        brdfLUT.image, 
+        VK_FORMAT_R16G16B16A16_SFLOAT,
+        VK_IMAGE_LAYOUT_GENERAL,
+        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+        1,
+        6
+    );
+
+    return brdfLUT;
 }
 
 void IBLProcessor::destroy() {
@@ -416,4 +783,12 @@ void IBLProcessor::destroy() {
     vkDestroyDescriptorSetLayout(context.device, hdrDescriptorLayout, nullptr);
     vkDestroyRenderPass(context.device, renderPass, nullptr);
     vkDestroySampler(context.device, hdrSampler, nullptr);
+
+    vkDestroyPipeline(context.device, irradiancePipeline, nullptr);
+    vkDestroyDescriptorSetLayout(context.device, computeDSL, nullptr);
+    vkDestroySampler(context.device, cubeSampler, nullptr);
+
+
+
+    vkDestroyPipelineLayout(context.device, computePL, nullptr);
 }
