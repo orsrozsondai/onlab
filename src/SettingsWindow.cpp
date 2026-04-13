@@ -241,7 +241,7 @@ void SettingsWindow::update() {
     ImGui::ColorEdit3("##ambientlight", glm::value_ptr(sceneUBO->ambientLight));
 
     ImGui::SeparatorText("Post processing");
-    ImGui::Checkbox("Tone Mapping", &sceneUBO->toneMapping);
+    ImGui::Checkbox("Tone Mapping", (bool*)&sceneUBO->toneMapping);
     ImGui::BeginDisabled(!sceneUBO->toneMapping);
     ImGui::Text("Exposure:");
     ImGui::SliderFloat("##exposure", &sceneUBO->exposure, 0, 2);

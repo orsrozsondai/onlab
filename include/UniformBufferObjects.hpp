@@ -58,7 +58,7 @@ struct SceneUBO {
     alignas(16) glm::vec3 ambientLight;
 
     alignas(16) glm::vec3 camPos;
-    bool toneMapping;
+    int toneMapping;
     float exposure;
 
     SceneUBO() {
@@ -66,7 +66,7 @@ struct SceneUBO {
         lightColor = {1, 1, 1};
         ambientLight = {0, 0, 0};
         camPos = {0, 0, 0};
-        toneMapping = 0;
+        toneMapping = 1;
         exposure = 1;
     }
 };
