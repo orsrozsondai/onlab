@@ -53,6 +53,7 @@ struct MaterialUBO {
 };
 
 struct SceneUBO {
+    int ibl;
     alignas(16) glm::vec4 lightPos;
     alignas(16) glm::vec3 lightColor;
     alignas(16) glm::vec3 ambientLight;
@@ -62,6 +63,7 @@ struct SceneUBO {
     float exposure;
 
     SceneUBO() {
+        ibl = 1;
         lightPos = {0, -1, 0, 0};
         lightColor = {1, 1, 1};
         ambientLight = {0, 0, 0};

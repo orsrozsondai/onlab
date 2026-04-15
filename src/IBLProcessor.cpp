@@ -1,10 +1,13 @@
 #include "IBLProcessor.hpp"
 #include "RenderContext.hpp"
 #include "helpers.hpp"
+#include <cstddef>
+#include <cstdint>
 #include <glm/ext/matrix_clip_space.hpp>
 #include <glm/ext/matrix_transform.hpp>
 #include <glm/ext/matrix_float4x4.hpp>
 #include <glm/ext/vector_float3.hpp>
+#include <glm/ext/vector_float4.hpp>
 #include <glm/glm.hpp>
 #include <iostream>
 #include <stdexcept>
@@ -25,6 +28,8 @@ IBLProcessor::IBLProcessor(const RenderContext& context, const GPUImage& hdrImag
     createComputeDSL();
     createComputePL();
     irradiancePipeline = createComputePipeline("build/shaders/irradiance.comp.spv");
+    prefilterPipeline = createComputePipeline("build/shaders/prefilter.comp.spv");
+    brdfPipeline = createComputePipeline("build/shaders/brdfLUT.comp.spv");
 }
 
 void IBLProcessor::createRenderPass() {
@@ -104,16 +109,16 @@ void IBLProcessor::createHDRSampler() {
 void IBLProcessor::createHDRDescriptorPool() {
     VkDescriptorPoolSize poolSizes[2]{};
     poolSizes[0].type            = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    poolSizes[0].descriptorCount = 10;
+    poolSizes[0].descriptorCount = 20;
 
     poolSizes[1].type            = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-    poolSizes[1].descriptorCount = 10;
+    poolSizes[1].descriptorCount = 20;
 
     VkDescriptorPoolCreateInfo poolInfo{};
     poolInfo.sType         = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
     poolInfo.poolSizeCount = 2;
     poolInfo.pPoolSizes    = poolSizes;
-    poolInfo.maxSets       = 10;
+    poolInfo.maxSets       = 40;
 
     
     if (vkCreateDescriptorPool(context.device, &poolInfo, nullptr, &hdrDescriptorPool) != VK_SUCCESS) {
@@ -445,7 +450,7 @@ void IBLProcessor::createComputePL() {
     VkPushConstantRange push{};
     push.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
     push.offset = 0;
-    push.size = sizeof(computePC);
+    push.size = sizeof(glm::vec4);
 
     VkPipelineLayoutCreateInfo ci{ VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
     ci.setLayoutCount = 1;
@@ -526,7 +531,7 @@ void IBLProcessor::createCubeSampler() {
 
 }
 
-VkDescriptorSet IBLProcessor::allocateComputeDS(const GPUImage& input, const GPUImage& output) {
+VkDescriptorSet IBLProcessor::allocateComputeDS(VkImageView input, VkImageView output) {
     VkDescriptorSetAllocateInfo ai{ VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
     ai.descriptorPool = hdrDescriptorPool;
     ai.descriptorSetCount = 1;
@@ -537,46 +542,52 @@ VkDescriptorSet IBLProcessor::allocateComputeDS(const GPUImage& input, const GPU
         throw std::runtime_error("Failed to allocate descriptor set");
     }
 
+    updateComputeDS(ds, input, output);
+    
+    return ds;
+}
+
+void IBLProcessor::updateComputeDS(VkDescriptorSet DS, VkImageView input, VkImageView output) {
     // Input cubemap
     VkDescriptorImageInfo inputInfo{};
     inputInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    inputInfo.imageView = input.view;
+    inputInfo.imageView = input;
     inputInfo.sampler = cubeSampler;
 
     // Output image
     VkDescriptorImageInfo outputInfo{};
     outputInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
-    outputInfo.imageView = output.view;
+    outputInfo.imageView = output;
 
     VkWriteDescriptorSet writes[2]{};
 
     writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    writes[0].dstSet = ds;
+    writes[0].dstSet = DS;
     writes[0].dstBinding = 0;
     writes[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     writes[0].descriptorCount = 1;
     writes[0].pImageInfo = &inputInfo;
 
     writes[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    writes[1].dstSet = ds;
+    writes[1].dstSet = DS;
     writes[1].dstBinding = 1;
     writes[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
     writes[1].descriptorCount = 1;
     writes[1].pImageInfo = &outputInfo;
 
     vkUpdateDescriptorSets(context.device, 2, writes, 0, nullptr);
-    return ds;
 }
 
 
 
 GPUImage IBLProcessor::createIrradianceMap() {
     GPUImage irradianceMap;
+    const uint32_t irradianceSize = 64;
     createImage(
         context.device,
         context.physicalDevice,
-        64,
-        64,
+        irradianceSize,
+        irradianceSize,
         VK_SAMPLE_COUNT_1_BIT,
         VK_FORMAT_R16G16B16A16_SFLOAT,
         VK_IMAGE_TILING_OPTIMAL,
@@ -612,7 +623,7 @@ GPUImage IBLProcessor::createIrradianceMap() {
     );
 
 
-    irradianceDS = allocateComputeDS(envMap, irradianceMap);
+    VkDescriptorSet irradianceDS = allocateComputeDS(envMap.view, irradianceMap.view);
     
     VkCommandBuffer cmd = beginSingleTimeCommands(context.device, context.commandPool);
 
@@ -623,9 +634,9 @@ GPUImage IBLProcessor::createIrradianceMap() {
     pc.roughness = 0.0f;
     pc.faceSize = faceSize;
 
-    vkCmdPushConstants(cmd, computePL, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(pc), &pc);
+    vkCmdPushConstants(cmd, computePL, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(computePC), &pc);
 
-    vkCmdDispatch(cmd, (faceSize + 7) / 8, (faceSize + 7) / 8, 6); // 6 for cubemap
+    vkCmdDispatch(cmd, (irradianceSize + 7) / 8, (irradianceSize + 7) / 8, 6); // 6 for cubemap
 
 
     VkMemoryBarrier barrier{ VK_STRUCTURE_TYPE_MEMORY_BARRIER };
@@ -661,11 +672,12 @@ GPUImage IBLProcessor::createIrradianceMap() {
 
 GPUImage IBLProcessor::createPrefilterMap() {
     GPUImage prefilterMap;
+    prefilterMap.mipLevels = floor(log2(faceSize)) + 1;
     createImage(
         context.device,
         context.physicalDevice,
-        64,
-        64,
+        faceSize,
+        faceSize,
         VK_SAMPLE_COUNT_1_BIT,
         VK_FORMAT_R16G16B16A16_SFLOAT,
         VK_IMAGE_TILING_OPTIMAL,
@@ -674,7 +686,7 @@ GPUImage IBLProcessor::createPrefilterMap() {
         VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT,
         prefilterMap.image,
         prefilterMap.memory,
-        1,
+        prefilterMap.mipLevels,
         6
     );
 
@@ -683,7 +695,7 @@ GPUImage IBLProcessor::createPrefilterMap() {
         prefilterMap.image,
         VK_FORMAT_R16G16B16A16_SFLOAT,
         VK_IMAGE_ASPECT_COLOR_BIT,
-        1,
+        prefilterMap.mipLevels,
         6,
         VK_IMAGE_VIEW_TYPE_CUBE
     );
@@ -696,11 +708,54 @@ GPUImage IBLProcessor::createPrefilterMap() {
         VK_FORMAT_R16G16B16A16_SFLOAT,
         VK_IMAGE_LAYOUT_UNDEFINED,
         VK_IMAGE_LAYOUT_GENERAL,
-        1,
+        prefilterMap.mipLevels,
         6
     );
 
-    //TODO: dispatch compute
+
+    std::vector<VkImageView> mipViews(prefilterMap.mipLevels);
+    VkCommandBuffer cmd = beginSingleTimeCommands(context.device, context.commandPool);
+    for (uint32_t mip = 0; mip < prefilterMap.mipLevels; mip++)
+    {
+        uint32_t size = faceSize >> mip;
+
+        mipViews[mip] = createImageView(
+            context.device,
+            prefilterMap.image, 
+            VK_FORMAT_R16G16B16A16_SFLOAT, 
+            VK_IMAGE_ASPECT_COLOR_BIT,
+            1, 
+            6,
+            VK_IMAGE_VIEW_TYPE_CUBE,
+            mip
+        );
+        auto ds = allocateComputeDS(envMap.view, mipViews[mip]);
+        
+        
+        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, prefilterPipeline);
+        vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, computePL, 0, 1, &ds, 0, nullptr);
+
+        computePC pc{};
+        pc.roughness = (float)mip / float(prefilterMap.mipLevels - 1);
+        pc.faceSize = size;
+        pc.mipLevel = mip;
+
+        vkCmdPushConstants(cmd, computePL, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(computePC), &pc);
+
+        vkCmdDispatch(cmd,
+            (size + 7) / 8,
+            (size + 7) / 8,
+            6
+        );
+    
+    }
+    endSingleTimeCommands(context.device, context.commandPool, context.graphicsQueue, cmd);
+
+
+    for (auto view : mipViews) {
+        vkDestroyImageView(context.device, view, nullptr);
+    }
+
 
     transitionImageLayout(
         context.device, 
@@ -710,7 +765,7 @@ GPUImage IBLProcessor::createPrefilterMap() {
         VK_FORMAT_R16G16B16A16_SFLOAT,
         VK_IMAGE_LAYOUT_GENERAL,
         VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-        1,
+        prefilterMap.mipLevels,
         6
     );
 
@@ -718,22 +773,23 @@ GPUImage IBLProcessor::createPrefilterMap() {
 }
 
 GPUImage IBLProcessor::createBRDFLUT() {
+    const uint32_t lutSize = 512;
     GPUImage brdfLUT;
     createImage(
         context.device,
         context.physicalDevice,
-        64,
-        64,
+        lutSize,
+        lutSize,
         VK_SAMPLE_COUNT_1_BIT,
         VK_FORMAT_R16G16B16A16_SFLOAT,
         VK_IMAGE_TILING_OPTIMAL,
         VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-        VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT,
+        0,
         brdfLUT.image,
         brdfLUT.memory,
         1,
-        6
+        1
     );
 
     brdfLUT.view = createImageView(
@@ -742,8 +798,8 @@ GPUImage IBLProcessor::createBRDFLUT() {
         VK_FORMAT_R16G16B16A16_SFLOAT,
         VK_IMAGE_ASPECT_COLOR_BIT,
         1,
-        6,
-        VK_IMAGE_VIEW_TYPE_CUBE
+        1,
+        VK_IMAGE_VIEW_TYPE_2D
     );
 
     transitionImageLayout(
@@ -755,10 +811,19 @@ GPUImage IBLProcessor::createBRDFLUT() {
         VK_IMAGE_LAYOUT_UNDEFINED,
         VK_IMAGE_LAYOUT_GENERAL,
         1,
-        6
+        1
     );
 
-    //TODO: dispatch compute
+    VkDescriptorSet brdfDS = allocateComputeDS(envMap.view, brdfLUT.view);
+
+    auto cmd = beginSingleTimeCommands(context.device, context.commandPool);
+
+    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, brdfPipeline);
+    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, computePL, 0, 1, &brdfDS, 0, nullptr);
+
+    vkCmdDispatch(cmd, (lutSize+7)/8, (lutSize+7)/8, 1);
+
+    endSingleTimeCommands(context.device, context.commandPool, context.graphicsQueue, cmd);
 
     transitionImageLayout(
         context.device, 
@@ -769,7 +834,7 @@ GPUImage IBLProcessor::createBRDFLUT() {
         VK_IMAGE_LAYOUT_GENERAL,
         VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
         1,
-        6
+        1
     );
 
     return brdfLUT;
@@ -785,6 +850,8 @@ void IBLProcessor::destroy() {
     vkDestroySampler(context.device, hdrSampler, nullptr);
 
     vkDestroyPipeline(context.device, irradiancePipeline, nullptr);
+    vkDestroyPipeline(context.device, prefilterPipeline, nullptr);
+    vkDestroyPipeline(context.device, brdfPipeline, nullptr);
     vkDestroyDescriptorSetLayout(context.device, computeDSL, nullptr);
     vkDestroySampler(context.device, cubeSampler, nullptr);
 

@@ -18,6 +18,7 @@ layout(set = 0, binding = 1) uniform MaterialUBO {
 } material;
 
 layout(set = 1, binding = 0) uniform SceneUBO {
+    bool ibl;
     vec4 lightPos;
     vec3 lightColor;
     vec3 ambientLight;
@@ -61,7 +62,7 @@ vec3 fs_CookTorrance(vec3 v, vec3 l, vec3 h) {
     return (D_GGX(h) * F_schlick(v, h) * G_Smith(l, v)) / max(4 * ndotl * ndotv, 0.00001);
 }
 
-vec3 fd_lambert(vec3 l) {
+vec3 fd_lambert() {
     return material.albedo / PI;
 }
 
@@ -90,27 +91,35 @@ void main() {
     vec3 h = normalize(v+l);
 
     float ndotl = max(dot(normalize(worldNormal), l), 0.0);
+    float ndotv = max(dot(normalize(worldNormal), v), 0.0);
 
 
     vec3 kD = vec3(1.0) - F_schlick(v, h);
     kD *= (1.0 - material.metallic);
 
     vec3 color = scene.ambientLight * material.albedo * 0.1; 
-    // color += fd_lambert(l) * ndotl * scene.lightColor * kD;
+    
+    if (scene.ibl) {
 
-    color += texture(irradiance, normalize(worldNormal)).rgb * material.albedo;
+        color += texture(irradiance, normalize(worldNormal)).rgb * fd_lambert() * kD;
 
-    // color += fs_blinnphong(h) * 0.1 * ndotl;
-    // color += fs_CookTorrance(v, l, h) * ndotl * scene.lightColor;
-
-
+        vec3 R = reflect(-v,-normalize(worldNormal));
+        vec3 prefilteredColor = textureLod(prefilter, R,  material.roughness * 11.0f).rgb;
+        vec2 brdf = texture(brdfLUT, vec2(ndotv, material.roughness)).rg;
+        vec3 F0 = mix(vec3(0.04), material.albedo, material.metallic);
+        color += prefilteredColor * (F0 * brdf.x + brdf.y);
+        
+    }
+    else {
+        color += fd_lambert() * ndotl * scene.lightColor * kD;
+        color += fs_CookTorrance(v, l, h) * ndotl * scene.lightColor;
+    }
     if (scene.toneMapping) {
         color *= scene.exposure;
         color = toneMapACES(color);
     }
-    
 
+    // color = textureLod(prefilter, worldNormal,  10.0f).rgb;
     outColor = vec4(color, 1.0);
 
-  
 }

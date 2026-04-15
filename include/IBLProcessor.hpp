@@ -8,8 +8,10 @@
 class IBLProcessor {
 private:
     struct computePC {
-        float roughness;
-        uint32_t faceSize;
+        int roughness;
+        int mipLevel;
+        int faceSize;
+        // int pad;
     };
 
     GPUImage hdrImage;
@@ -26,7 +28,6 @@ private:
     VkDescriptorSetLayout computeDSL;
     VkPipelineLayout computePL;
     VkSampler cubeSampler;
-    VkDescriptorSet irradianceDS;
 
 
     VkPipeline eqToCubePipeline;
@@ -47,7 +48,8 @@ private:
     void createComputePL();
     VkPipeline createComputePipeline(const std::string& path);
     void createCubeSampler();
-    VkDescriptorSet allocateComputeDS(const GPUImage& input, const GPUImage& output);
+    VkDescriptorSet allocateComputeDS(VkImageView input, VkImageView output);
+    void updateComputeDS(VkDescriptorSet DS, VkImageView input, VkImageView output);
 
 
 public:

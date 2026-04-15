@@ -275,7 +275,8 @@ VkImageView createImageView(
     VkImageAspectFlags aspectFlags,
     uint32_t mipLevels,
     uint32_t layerCount,
-    VkImageViewType viewType
+    VkImageViewType viewType,
+    uint32_t mip
 ) {
     VkImageViewCreateInfo viewInfo{};
     viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -284,7 +285,7 @@ VkImageView createImageView(
     viewInfo.format = format;
 
     viewInfo.subresourceRange.aspectMask = aspectFlags;
-    viewInfo.subresourceRange.baseMipLevel = 0;
+    viewInfo.subresourceRange.baseMipLevel = mip;
     viewInfo.subresourceRange.levelCount = mipLevels;
     viewInfo.subresourceRange.baseArrayLayer = 0;
     viewInfo.subresourceRange.layerCount = layerCount;

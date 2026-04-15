@@ -39,7 +39,10 @@ void EnvMap::init() {
     prefilter = proc.createPrefilterMap();
     brdfLUT = proc.createBRDFLUT();
 
+
+    
     createDescriptorSet();
+    
 
     proc.destroy();
 }
@@ -137,15 +140,15 @@ void EnvMap::createSamplers() {
         context.device,
         VK_FILTER_LINEAR,
         VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
-        1.0f,
+        11,
         false
     );
 
     brdfSampler = createSampler(
         context.device,
-        VK_FILTER_LINEAR,
+        VK_FILTER_NEAREST,
         VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
-        1.0f,
+        0.0f,
         false
     );
 
@@ -178,6 +181,7 @@ void EnvMap::createDescriptorSet() {
     allocInfo.descriptorPool = context.descriptorPool;
     allocInfo.descriptorSetCount = 1;
     allocInfo.pSetLayouts = &DSL;
+    allocInfo.pNext = nullptr;
 
     vkAllocateDescriptorSets(context.device, &allocInfo, &DS);
 

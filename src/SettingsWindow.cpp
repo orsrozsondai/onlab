@@ -206,6 +206,10 @@ void SettingsWindow::update() {
 
     ImGui::SeparatorText("Light");
 
+    ImGui::Checkbox("Use IBL", (bool*) &sceneUBO->ibl);
+
+    ImGui::BeginDisabled(sceneUBO->ibl);
+
     ImGui::Text("Type:");
     if (ImGui::Combo("##light_type", &type, lightTypes, IM_ARRAYSIZE(lightTypes))) {
         sceneUBO->lightPos.w = (float)type;
@@ -239,6 +243,8 @@ void SettingsWindow::update() {
     }
     ImGui::Text("Ambient:");
     ImGui::ColorEdit3("##ambientlight", glm::value_ptr(sceneUBO->ambientLight));
+
+    ImGui::EndDisabled();
 
     ImGui::SeparatorText("Post processing");
     ImGui::Checkbox("Tone Mapping", (bool*)&sceneUBO->toneMapping);

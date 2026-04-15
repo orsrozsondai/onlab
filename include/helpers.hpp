@@ -9,6 +9,7 @@ struct GPUImage {
     VkImage image = VK_NULL_HANDLE;
     VkDeviceMemory memory = VK_NULL_HANDLE;
     VkImageView view = VK_NULL_HANDLE;
+    uint32_t mipLevels = 1;
 
     void destroy(VkDevice device);
 };
@@ -66,7 +67,8 @@ VkImageView createImageView(
     VkImageAspectFlags aspectFlags,
     uint32_t mipLevels,
     uint32_t layerCount,
-    VkImageViewType viewType
+    VkImageViewType viewType,
+    uint32_t mip = 0
 );
 
 VkImageView createCubemapFaceView(
