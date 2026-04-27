@@ -8,7 +8,7 @@
 class IBLProcessor {
 private:
     struct computePC {
-        int roughness;
+        float roughness;
         int mipLevel;
         int faceSize;
         // int pad;

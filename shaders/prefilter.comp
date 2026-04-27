@@ -23,6 +23,7 @@ vec3 getDirection(uint face, vec2 uv) {
     if (face == 4) return normalize(vec3( uv.x, -uv.y,  1.0)); // +Z
     return normalize(vec3(-uv.x, -uv.y, -1.0));                 // -Z
 }
+float rand(float n) { return fract(sin(n) * 43758.5453123); }
 
 vec3 importanceSampleGGX(vec2 Xi, vec3 N, float roughness)
 {
@@ -83,9 +84,14 @@ void main() {
     for (uint i = 0u; i < SAMPLE_COUNT; i++)
     {
         vec2 Xi = hammersley(i, SAMPLE_COUNT);
-
+        vec2 randOffset = vec2(
+            rand(coord.x + coord.y * 17),
+            rand(coord.x * 13 + coord.y)
+        );
+        Xi = fract(Xi + randOffset);
         vec3 H = importanceSampleGGX(Xi, N, pc.roughness);
         vec3 L = normalize(2.0 * dot(V, H) * H - V);
+        
 
         float NdotL = max(dot(N, L), 0.0);
 
@@ -93,7 +99,7 @@ void main() {
         {
             vec3 color = texture(uEnvMap, L).rgb;
 
-            prefiltered += min(vec3(10),color) * NdotL;
+            prefiltered += min(vec3(100000),color) * NdotL;
             totalWeight += NdotL;
         }
     }

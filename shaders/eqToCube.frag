@@ -17,6 +17,6 @@ void main() {
     vec3 dir = normalize(fragDir);
     vec2 uv = sampleSphericalMap(dir);
 
-    vec3 color = texture(hdrEquirect, uv).rgb;
+    vec3 color = texture(hdrEquirect, uv).rgb * .3f;
     outColor = vec4(color, 1.0);
 }

@@ -22,7 +22,7 @@ $ k_d = 1-k_s$
 | Modell               | Képlet         |
 |----------------------|----------------|
 | Cook–Torrance               | $$ f_s = \frac{D(\mathbf{h}) F(\mathbf{v}, \mathbf{h}) G(\mathbf{l}, \mathbf{v})}{4 (n \cdot l) (n \cdot v)} $$ |
-| Blinn–Phong                 | $$ f_s = \frac{n+2}{2\pi} (n \cdot h)^n $$ |
+| Blinn–Phong                 | $$ f_s = \frac{n_s+2}{2\pi} (n \cdot h)^{n_s} $$ |
 | Ward                        | $$ f_s = \frac{1}{4\pi\alpha_x \alpha_y \sqrt{(n\cdot l)(n\cdot v)}} \exp\left(-\frac{\tan^2 \theta_h}{1}\right) $$ (anizotróp, egyszerűsítve) |
 | Disney                      | $$ f_\text{clearcoat} = clearcoat \frac{D_\text{GTR1}(h, \alpha) F_\text{0.04}(v,h) G_\text{Smith}(l,v,h)}{4*(n \cdot l)(n \cdot v)},  α=lerp(0.1,0.001,clearcoatGloss) $$ $$ f_\text{sheen} = sheen \cdot F_\text{sheen}(\omega_i, \omega_o)C_\text{sheen}, C_\text{sheen} = lerp(1, normalize(baseColor), sheenTint) $$ $$ f_r = f_d + f_\text{sCookTorrance} + f_\text{sheen} + f_\text{clearcoat} $$|
 

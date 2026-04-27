@@ -23,7 +23,7 @@ int main() {
     
     Pipeline p = Pipeline(app.getRenderContext(), "default.vert","default.frag");
 
-    EnvMap env(app.getRenderContext(), "res/envmaps/golden_gate_hills_4k.hdr", p.getDescriptorSetLayouts()[2]);
+    EnvMap env(app.getRenderContext(), "res/envmaps/rural_evening_road_4k.hdr", p.getDescriptorSetLayouts()[2]);
     
     
     std::vector<Vertex> cubeVertices = {
@@ -103,7 +103,7 @@ int main() {
         45.0f
     );
     Scene scene(app.getRenderContext(), &p, &camera);
-    scene.addMesh(std::move(sphereMesh));
+    scene.addMesh(std::move(skullMesh));
     scene.addEnvMap(&env);
 
     

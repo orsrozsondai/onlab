@@ -40,10 +40,6 @@ vec3 sampleHemisphere(vec3 N, vec2 Xi) {
 
 // Hash for random sampling
 float rand(float n) { return fract(sin(n) * 43758.5453123); }
-float rand(vec2 co)
-{
-    return fract(sin(dot(co, vec2(12.9898,78.233))) * 43758.5453);
-}
 
 float radicalInverse_VdC(uint bits)
 {
@@ -92,7 +88,7 @@ void main() {
     
         vec3 L = sampleHemisphere(N, Xi);
     
-        vec3 envColor = min(vec3(10),texture(uEnvMap, L).rgb);
+        vec3 envColor = min(vec3(100000),texture(uEnvMap, L).rgb);
 
         irradiance += envColor;
     }
