@@ -141,7 +141,7 @@ void EnvMap::createSamplers() {
         VK_FILTER_LINEAR,
         VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
         11,
-        false
+        true
     );
 
     brdfSampler = createSampler(

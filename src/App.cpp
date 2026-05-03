@@ -266,7 +266,16 @@ void App::selectDevice() {
     const char* deviceExtensions[] = {
         VK_KHR_SWAPCHAIN_EXTENSION_NAME
     };
-    
+
+    // sampler anisotropy
+    VkPhysicalDeviceFeatures supportedFeatures;
+    vkGetPhysicalDeviceFeatures(physicalDevice, &supportedFeatures);
+
+    if (!supportedFeatures.samplerAnisotropy) {
+        std::cout << "Anisotropic filtering is not supported" << std::endl;
+    }
+    VkPhysicalDeviceFeatures deviceFeatures = {};
+    deviceFeatures.samplerAnisotropy = supportedFeatures.samplerAnisotropy;
 
     VkDeviceCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
@@ -275,6 +284,8 @@ void App::selectDevice() {
 
     createInfo.enabledExtensionCount = 1;
     createInfo.ppEnabledExtensionNames = deviceExtensions;
+
+    createInfo.pEnabledFeatures = &deviceFeatures;
 
 
     if (vkCreateDevice(physicalDevice, &createInfo, nullptr, &device) != VK_SUCCESS) {
