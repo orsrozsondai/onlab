@@ -124,6 +124,8 @@ void SettingsWindow::update() {
     static const char* lightTypes[] = {"directional", "positional"};
     static int type = (int)sceneUBO->lightPos.w;
     static glm::vec2 lightDir(0,0);
+    static const char* BRDFNames[] = {"None", "Lambert", "Oren-Nayar", "Burley", "None", "Blinn-Phong", "Cook-Torrance", "Ward", "Disney"};
+    static int diffuse = 0, specular = 0;
     ImGuiStyle& style = ImGui::GetStyle();
 
     ImGui::PushItemWidth(-FLT_MIN);
@@ -137,7 +139,19 @@ void SettingsWindow::update() {
     if (ImGui::SliderFloat("##obj_dist", &objd, 1.f, 10.f)) {
         scene->setObjectDistance(objd);
     }
+    ImGui::Text("BRDF:");
+    ImGui::PopItemWidth();
+    if (ImGui::Combo("Diffuse", &diffuse, BRDFNames, 4)) {
+        sceneUBO->brdf = (1 << diffuse) | (1 << (specular + 4));
+        scene->reloadShaders();
+    }
+    if (ImGui::Combo("Specular", &specular, &BRDFNames[4], 5)) {
+        sceneUBO->brdf = (1 << diffuse) | (1 << (specular + 4));
+        scene->reloadShaders();
+    }
 
+
+    ImGui::PushItemWidth(-FLT_MIN);
     static bool changed_param = false;
 
     ImGui::SeparatorText("Material");

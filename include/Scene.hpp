@@ -59,7 +59,7 @@ public:
     void addEnvMap(EnvMap* pEnv);
     void destroy();
     void reloadShaders() {
-        pipeline->recreate();
+        pipeline->recreate(sceneUBO.brdf);
     }
 
 

@@ -32,7 +32,7 @@ $ k_d = 1-k_s$
 |----------------------|----------------|
 | GGX / Trowbridge–Reitz      | $$ D_\text{GGX}(\mathbf{h}) = \frac{\alpha^2}{\pi ((n \cdot h)^2 (\alpha^2 - 1) + 1)^2} $$ |
 | Beckmann NDF                | $$ D_\text{Beckmann}(\mathbf{h}) = \frac{1}{\pi \alpha^2 \cos^4 \theta_h} \exp\left(-\frac{\tan^2 \theta_h}{\alpha^2}\right) $$ |
-| Generalized-Trowbridge-Reitz| $$ D_\text{GTR1} = \frac{c}{\alpha ^ 2 \cos^2 \theta_h + \sin ^2 \theta_h} $$ |
+| Generalized-Trowbridge-Reitz| $$ D_\text{GTR1} = \frac{\alpha^2 - 1}{\pi * ln(\alpha^2)(\alpha ^ 2 \cos^2 \theta_h + \sin ^2 \theta_h)} $$ |
 
 ## Geometry
 

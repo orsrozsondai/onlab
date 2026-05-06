@@ -75,6 +75,7 @@ struct SceneUBO {
     alignas(16) glm::vec3 camPos;
     int toneMapping;
     float exposure;
+    BRDF brdf;
 
     SceneUBO() {
         ibl = 1;
@@ -84,6 +85,7 @@ struct SceneUBO {
         camPos = {0, 0, 0};
         toneMapping = 1;
         exposure = 1;
+        brdf = 0;
     }
 };
 

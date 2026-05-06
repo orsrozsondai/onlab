@@ -1,4 +1,5 @@
 #include "Pipeline.hpp"
+#include "UniformBufferObjects.hpp"
 #include "Vertex.hpp"
 #include "helpers.hpp"
 #include <cstdint>
@@ -106,11 +107,24 @@ void Pipeline::create(BRDF brdf) {
     vertStage.module = vertModule;
     vertStage.pName = "main";
 
+
+    VkSpecializationMapEntry entry;
+    entry.constantID = 0;
+    entry.offset = 0;
+    entry.size = sizeof(BRDF);
+
+    VkSpecializationInfo specInfo;
+    specInfo.dataSize = sizeof(BRDF);
+    specInfo.pData = &brdf;
+    specInfo.mapEntryCount = 1;
+    specInfo.pMapEntries = &entry;
+
     VkPipelineShaderStageCreateInfo fragStage{};
     fragStage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     fragStage.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
     fragStage.module = fragModule;
     fragStage.pName = "main";
+    fragStage.pSpecializationInfo = &specInfo;
 
     VkPipelineShaderStageCreateInfo stages[] = { vertStage, fragStage };
 
@@ -190,84 +204,6 @@ void Pipeline::create(BRDF brdf) {
     blend.attachmentCount = 1;
     blend.pAttachments = &colorBlend;
 
-/*     // uniforms
-    VkDescriptorSetLayoutBinding vsUboLayoutBinding{};
-    vsUboLayoutBinding.binding = 0;
-    vsUboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    vsUboLayoutBinding.descriptorCount = 1;
-    vsUboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-    
-    VkDescriptorSetLayoutBinding materialUboLayoutBinding{};
-    materialUboLayoutBinding.binding = 1;
-    materialUboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    materialUboLayoutBinding.descriptorCount = 1;
-    materialUboLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    
-    VkDescriptorSetLayoutBinding sceneUboLayoutBinding{};
-    sceneUboLayoutBinding.binding = 0;
-    sceneUboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    sceneUboLayoutBinding.descriptorCount = 1;
-    sceneUboLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-
-    std::array<VkDescriptorSetLayoutBinding, 2> bindings = {
-        vsUboLayoutBinding,
-        materialUboLayoutBinding
-    };
-
-    std::array<VkDescriptorSetLayoutBinding, 3> iblBindings;
-    iblBindings[0].binding = 0;
-    iblBindings[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    iblBindings[0].descriptorCount = 1;
-    iblBindings[0].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    iblBindings[0].pImmutableSamplers = nullptr;
-    iblBindings[1].binding = 1;
-    iblBindings[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    iblBindings[1].descriptorCount = 1;
-    iblBindings[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    iblBindings[1].pImmutableSamplers = nullptr;
-    iblBindings[2].binding = 2;
-    iblBindings[2].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    iblBindings[2].descriptorCount = 1;
-    iblBindings[2].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    iblBindings[2].pImmutableSamplers = nullptr;
-
-
-    VkDescriptorSetLayoutCreateInfo descriptorSetLayoutInfo1{};
-    descriptorSetLayoutInfo1.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    descriptorSetLayoutInfo1.bindingCount = bindings.size();
-    descriptorSetLayoutInfo1.pBindings = bindings.data();
-
-    VkDescriptorSetLayoutCreateInfo descriptorSetLayoutInfo2{};
-    descriptorSetLayoutInfo2.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    descriptorSetLayoutInfo2.bindingCount = 1;
-    descriptorSetLayoutInfo2.pBindings = &sceneUboLayoutBinding;
-
-    VkDescriptorSetLayoutCreateInfo descriptorSetLayoutInfo3{};
-    descriptorSetLayoutInfo3.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    descriptorSetLayoutInfo3.bindingCount = iblBindings.size();
-    descriptorSetLayoutInfo3.pBindings = iblBindings.data();
-
-    descriptorSetLayouts.resize(3);
-
-    if (vkCreateDescriptorSetLayout(context.device, &descriptorSetLayoutInfo1, nullptr, &descriptorSetLayouts[0]) != VK_SUCCESS) {
-        throw std::runtime_error("failed to create descriptor set layout!");
-    }
-    if (vkCreateDescriptorSetLayout(context.device, &descriptorSetLayoutInfo2, nullptr, &descriptorSetLayouts[1]) != VK_SUCCESS) {
-        throw std::runtime_error("failed to create descriptor set layout!");
-    }
-    if (vkCreateDescriptorSetLayout(context.device, &descriptorSetLayoutInfo3, nullptr, &descriptorSetLayouts[2]) != VK_SUCCESS) {
-        throw std::runtime_error("failed to create descriptor set layout!");
-    }
-
-    VkPipelineLayoutCreateInfo layoutInfo{};
-    layoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-    layoutInfo.setLayoutCount = descriptorSetLayouts.size();
-    layoutInfo.pSetLayouts = descriptorSetLayouts.data();
-
-    if (vkCreatePipelineLayout(context.device, &layoutInfo, nullptr, &pipelineLayout) != VK_SUCCESS) {
-        throw std::runtime_error("failed to create pipeline layout!");
-    } */
-
     VkPipelineDepthStencilStateCreateInfo depthStencil{};
     depthStencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
     depthStencil.depthTestEnable = VK_TRUE;
@@ -314,7 +250,7 @@ void Pipeline::recreate(BRDF brdf) {
         vkDestroyPipeline(context.device, pipeline, nullptr);
         pipeline = VK_NULL_HANDLE;
     }
-    create();
+    create(brdf);
     std::cout << "Pipeline recreated" << std::endl;
 }
 
