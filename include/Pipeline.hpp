@@ -1,5 +1,6 @@
 #pragma once
 #include "RenderContext.hpp"
+#include "UniformBufferObjects.hpp"
 #include <vulkan/vulkan_core.h>
 #include <string>
 #include <vector>
@@ -14,9 +15,9 @@ private:
     VkPipelineLayout pipelineLayout;
     std::vector<VkDescriptorSetLayout> descriptorSetLayouts;
 
-    void create();
-    // static std::vector<char> readFile(const std::string& path);
-    // VkShaderModule createShaderModule(const std::vector<char>& code); 
+    void create(BRDF brdf = 0);
+
+    void createLayout();
 
 public:
 
@@ -27,6 +28,8 @@ public:
     VkPipelineLayout getPipelineLayout() const { return pipelineLayout;}
 
     void bind(VkCommandBuffer cmd, const VkExtent2D& extent) const;
+
+    void recreate(BRDF brdf = 0);
 
     void destroy();
 

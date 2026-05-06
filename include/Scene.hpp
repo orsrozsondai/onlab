@@ -58,6 +58,9 @@ public:
     bool isObjectInterpolated();
     void addEnvMap(EnvMap* pEnv);
     void destroy();
+    void reloadShaders() {
+        pipeline->recreate();
+    }
 
 
     Object* addObject(std::unique_ptr<Object> obj);

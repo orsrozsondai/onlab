@@ -4,15 +4,96 @@
 #include <cstdint>
 #include <array>
 #include <glm/ext/vector_float3.hpp>
+#include <iostream>
 #include <stdexcept>
 #include <vulkan/vulkan_core.h>
 
 
 Pipeline::Pipeline(const RenderContext& context, const std::string& vert, const std::string&frag) : context(context), vert(vert), frag(frag) {
+    createLayout();
     create();
 }
 
-void Pipeline::create() {
+void Pipeline::createLayout() {
+    VkDescriptorSetLayoutBinding vsUboLayoutBinding{};
+    vsUboLayoutBinding.binding = 0;
+    vsUboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    vsUboLayoutBinding.descriptorCount = 1;
+    vsUboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+    
+    VkDescriptorSetLayoutBinding materialUboLayoutBinding{};
+    materialUboLayoutBinding.binding = 1;
+    materialUboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    materialUboLayoutBinding.descriptorCount = 1;
+    materialUboLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    
+    VkDescriptorSetLayoutBinding sceneUboLayoutBinding{};
+    sceneUboLayoutBinding.binding = 0;
+    sceneUboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    sceneUboLayoutBinding.descriptorCount = 1;
+    sceneUboLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+    std::array<VkDescriptorSetLayoutBinding, 2> bindings = {
+        vsUboLayoutBinding,
+        materialUboLayoutBinding
+    };
+
+    std::array<VkDescriptorSetLayoutBinding, 3> iblBindings;
+    iblBindings[0].binding = 0;
+    iblBindings[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    iblBindings[0].descriptorCount = 1;
+    iblBindings[0].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    iblBindings[0].pImmutableSamplers = nullptr;
+    iblBindings[1].binding = 1;
+    iblBindings[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    iblBindings[1].descriptorCount = 1;
+    iblBindings[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    iblBindings[1].pImmutableSamplers = nullptr;
+    iblBindings[2].binding = 2;
+    iblBindings[2].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    iblBindings[2].descriptorCount = 1;
+    iblBindings[2].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    iblBindings[2].pImmutableSamplers = nullptr;
+
+
+    VkDescriptorSetLayoutCreateInfo descriptorSetLayoutInfo1{};
+    descriptorSetLayoutInfo1.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    descriptorSetLayoutInfo1.bindingCount = bindings.size();
+    descriptorSetLayoutInfo1.pBindings = bindings.data();
+
+    VkDescriptorSetLayoutCreateInfo descriptorSetLayoutInfo2{};
+    descriptorSetLayoutInfo2.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    descriptorSetLayoutInfo2.bindingCount = 1;
+    descriptorSetLayoutInfo2.pBindings = &sceneUboLayoutBinding;
+
+    VkDescriptorSetLayoutCreateInfo descriptorSetLayoutInfo3{};
+    descriptorSetLayoutInfo3.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    descriptorSetLayoutInfo3.bindingCount = iblBindings.size();
+    descriptorSetLayoutInfo3.pBindings = iblBindings.data();
+
+    descriptorSetLayouts.resize(3);
+
+    if (vkCreateDescriptorSetLayout(context.device, &descriptorSetLayoutInfo1, nullptr, &descriptorSetLayouts[0]) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create descriptor set layout!");
+    }
+    if (vkCreateDescriptorSetLayout(context.device, &descriptorSetLayoutInfo2, nullptr, &descriptorSetLayouts[1]) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create descriptor set layout!");
+    }
+    if (vkCreateDescriptorSetLayout(context.device, &descriptorSetLayoutInfo3, nullptr, &descriptorSetLayouts[2]) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create descriptor set layout!");
+    }
+
+    VkPipelineLayoutCreateInfo layoutInfo{};
+    layoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    layoutInfo.setLayoutCount = descriptorSetLayouts.size();
+    layoutInfo.pSetLayouts = descriptorSetLayouts.data();
+
+    if (vkCreatePipelineLayout(context.device, &layoutInfo, nullptr, &pipelineLayout) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create pipeline layout!");
+    }
+}
+
+void Pipeline::create(BRDF brdf) {
     auto vertCode = readFile("build/shaders/" + vert + ".spv");
     auto fragCode = readFile("build/shaders/" + frag + ".spv");
 
@@ -109,7 +190,7 @@ void Pipeline::create() {
     blend.attachmentCount = 1;
     blend.pAttachments = &colorBlend;
 
-    // uniforms
+/*     // uniforms
     VkDescriptorSetLayoutBinding vsUboLayoutBinding{};
     vsUboLayoutBinding.binding = 0;
     vsUboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -185,7 +266,7 @@ void Pipeline::create() {
 
     if (vkCreatePipelineLayout(context.device, &layoutInfo, nullptr, &pipelineLayout) != VK_SUCCESS) {
         throw std::runtime_error("failed to create pipeline layout!");
-    }
+    } */
 
     VkPipelineDepthStencilStateCreateInfo depthStencil{};
     depthStencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
@@ -227,36 +308,15 @@ void Pipeline::create() {
 
 }
 
-/* std::vector<char> Pipeline::readFile(const std::string& path) {
-    std::ifstream file(path, std::ios::ate | std::ios::binary);
-
-    if (!file)
-        throw std::runtime_error("failed to open file: " + path);
-
-    size_t size = file.tellg();
-    std::vector<char> buffer(size);
-
-    file.seekg(0);
-    file.read(buffer.data(), size);
-
-    return buffer;
-} */
-
-/* VkShaderModule Pipeline::createShaderModule(const std::vector<char>& code) {
-    VkShaderModuleCreateInfo info{};
-    info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-    info.codeSize = code.size();
-    info.pCode = reinterpret_cast<const uint32_t*>(code.data());
-
-    VkShaderModule module;
-
-    if (vkCreateShaderModule(context.device, &info, nullptr, &module) != VK_SUCCESS) {
-        throw std::runtime_error("failed to create shader module!");
+void Pipeline::recreate(BRDF brdf) {
+    vkDeviceWaitIdle(context.device);
+    if (pipeline != VK_NULL_HANDLE) {
+        vkDestroyPipeline(context.device, pipeline, nullptr);
+        pipeline = VK_NULL_HANDLE;
     }
-
-    return module;
-} */
-
+    create();
+    std::cout << "Pipeline recreated" << std::endl;
+}
 
 void Pipeline::bind(VkCommandBuffer cmd, const VkExtent2D& extent) const {
     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);

@@ -18,12 +18,14 @@ int main() {
 
     auto sphereMesh = std::make_unique<MeshLoader>("res/models/sphere.obj");
     
+    // auto toiletObj = std::make_unique<MeshLoader>("res/models/toilet.obj");
+    
 
     App app("PBR");
     
-    Pipeline p = Pipeline(app.getRenderContext(), "default.vert","default.frag");
+    Pipeline p = Pipeline(app.getRenderContext(), "object.vert","pbr.frag");
 
-    EnvMap env(app.getRenderContext(), "res/envmaps/rural_evening_road_4k.hdr", p.getDescriptorSetLayouts()[2]);
+    EnvMap env(app.getRenderContext(), "res/envmaps/studio_kontrast_03_4k.hdr", p.getDescriptorSetLayouts()[2]);
     
     
     std::vector<Vertex> cubeVertices = {

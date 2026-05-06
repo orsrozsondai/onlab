@@ -16,6 +16,20 @@ enum MaterialParameters {
     CLEARCOAT_GLOSS = 6
 };
 
+enum BRDFFlags {
+    BRDF_DIFFUSE_NONE           = 1 << 0,
+    BRDF_DIFFUSE_LAMBERT        = 1 << 1,
+    BRDF_DIFFUSE_OREN_NAYAR     = 1 << 2,
+    BRDF_DIFFUSE_BURLEY         = 1 << 3,
+    BRDF_SPECULAR_NONE          = 1 << 4,
+    BRDF_SPECULAR_BLINN_PHONG   = 1 << 5,
+    BRDF_SPECULAR_COOK_TORRANCE = 1 << 6,
+    BRDF_SPECULAR_WARD          = 1 << 7,
+    BRDF_SPECULAR_DISNEY        = 1 << 8,
+};
+
+typedef uint32_t BRDF;
+
 struct MaterialUBO {
     alignas(16) glm::vec3 albedo;
     float metallic;

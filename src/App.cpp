@@ -93,6 +93,7 @@ void App::handleKey(int key, int scancode, int action, int mods) {
         }
         if (key == GLFW_KEY_LEFT) scene->cycleSelected(-1);
         if (key == GLFW_KEY_RIGHT) scene->cycleSelected(1);
+        if (key == GLFW_KEY_R) scene->reloadShaders();
     }
 }
 
