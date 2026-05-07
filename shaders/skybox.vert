@@ -8,7 +8,6 @@ layout(push_constant) uniform PushConstants {
 } vp;
 
 vec3 vertices[36] = vec3[](
-    // Cube vertices same as equirect → cubemap
     vec3(-1,-1,-1), vec3( 1,-1,-1), vec3( 1, 1,-1),
     vec3( 1, 1,-1), vec3(-1, 1,-1), vec3(-1,-1,-1),
     vec3(-1,-1, 1), vec3( 1,-1, 1), vec3( 1, 1, 1),
@@ -26,6 +25,6 @@ vec3 vertices[36] = vec3[](
 void main() {
     vec3 pos = vertices[gl_VertexIndex];
     fragDir = pos;
-    mat4 rotView = mat4(mat3(vp.view)); // remove translation
+    mat4 rotView = mat4(mat3(vp.view)); 
     gl_Position = vp.proj * rotView * vec4(pos, 1.0);
 }

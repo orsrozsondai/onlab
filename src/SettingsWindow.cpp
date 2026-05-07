@@ -1,4 +1,5 @@
 #include "SettingsWindow.hpp"
+#include "Camera.hpp"
 #include "Config.hpp"
 #include "Scene.hpp"
 #include "UniformBufferObjects.hpp"
@@ -126,6 +127,7 @@ void SettingsWindow::update() {
     static glm::vec2 lightDir(0,0);
     static const char* BRDFNames[] = {"None", "Lambert", "Oren-Nayar", "Burley", "None", "Blinn-Phong", "Cook-Torrance", "Ward", "Disney"};
     static int diffuse = 0, specular = 0;
+    static int camera_fov = 45;
     ImGuiStyle& style = ImGui::GetStyle();
 
     ImGui::PushItemWidth(-FLT_MIN);
@@ -138,6 +140,10 @@ void SettingsWindow::update() {
     ImGui::Text("Object distance:");
     if (ImGui::SliderFloat("##obj_dist", &objd, 1.f, 10.f)) {
         scene->setObjectDistance(objd);
+    }
+    ImGui::Text("Camera FOV:");
+    if (ImGui::SliderInt("##fov", &camera_fov, 30, 90)) {
+        scene->getCamera()->setFov((float)camera_fov);
     }
     ImGui::Text("BRDF:");
     ImGui::PopItemWidth();

@@ -61,6 +61,7 @@ public:
     void reloadShaders() {
         pipeline->recreate(sceneUBO.brdf);
     }
+    Camera* getCamera() {return camera;}
 
 
     Object* addObject(std::unique_ptr<Object> obj);

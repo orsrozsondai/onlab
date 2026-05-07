@@ -76,24 +76,28 @@ void App::framebufferResizeCallback(GLFWwindow* window, int width, int height) {
 }
 
 void App::keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods) {
-    if (ImGui::GetCurrentContext()) {
-        ImGuiIO& io = ImGui::GetIO();
-        if (io.WantCaptureKeyboard)
-            return;
-    }
+    
     App* app = reinterpret_cast<App*>(glfwGetWindowUserPointer(window));
     app->handleKey(key, scancode, action, mods);
 }
 
 void App::handleKey(int key, int scancode, int action, int mods) {
     if (action == GLFW_PRESS) {
-        if (key == GLFW_KEY_M) settingsWindow->toggle();
+        if (mods & GLFW_MOD_CONTROL) {
+            if (key == GLFW_KEY_R) scene->reloadShaders();
+            if (key == GLFW_KEY_M) settingsWindow->toggle();
+        }
+        if (ImGui::GetCurrentContext()) {
+            ImGuiIO& io = ImGui::GetIO();
+            if (io.WantCaptureKeyboard)
+                return;
+        }
         if (key >= GLFW_KEY_0 && key <= GLFW_KEY_9) {
             scene->selectObject(key-GLFW_KEY_0);
         }
         if (key == GLFW_KEY_LEFT) scene->cycleSelected(-1);
         if (key == GLFW_KEY_RIGHT) scene->cycleSelected(1);
-        if (key == GLFW_KEY_R) scene->reloadShaders();
+        
     }
 }
 
@@ -140,13 +144,14 @@ void App::scrollCallback(GLFWwindow* window, double xoffset, double yoffset) {
     app->handleScroll(xoffset, yoffset);
 }
 void App::handleScroll(double xoffset, double yoffset) {
-    camera->zoom(float(yoffset)*0.5f);
+    if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS ||
+        glfwGetKey(window, GLFW_KEY_RIGHT_CONTROL) == GLFW_PRESS)
+
+        scene->cycleSelected(yoffset);
+    
+    else camera->zoom(float(yoffset)*0.5f);
 }
-void App::mouseButtonCallback(GLFWwindow* window,
-                         int button,
-                         int action,
-                         int mods)
-{
+void App::mouseButtonCallback(GLFWwindow* window, int button, int action, int mods) {
     if (ImGui::GetCurrentContext()) {
         ImGuiIO& io = ImGui::GetIO();
         if (io.WantCaptureMouse)
