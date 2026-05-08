@@ -8,7 +8,6 @@ layout(set = 0, binding = 1, rgba16f) writeonly uniform imageCube uIrradiance;
 
 const float PI = 3.14159265359;
 
-// Convert cubemap face + uv to direction
 vec3 getDirection(uint face, vec2 uv) {
     uv = uv * 2.0 - 1.0;
 
@@ -78,7 +77,6 @@ void main() {
     {
         vec2 Xi = hammersley(i, SAMPLE_COUNT);
 
-        // per-pixel random offset
         vec2 randOffset = vec2(
             rand(coord.x + coord.y * 17),
             rand(coord.x * 13 + coord.y)

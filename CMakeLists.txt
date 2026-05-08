@@ -49,24 +49,27 @@ set(IMGUI_SHADER_SRC
     imgui/backends/vulkan/glsl_shader.frag
 )
 
-set(IMGUI_SHADER_OUTPUTS)
+set(IMGUI_SHADER_OUTPUTS "")
 
 foreach(shader ${IMGUI_SHADER_SRC})
+    get_filename_component(shader ${shader} ABSOLUTE)
     get_filename_component(FILE_NAME ${shader} NAME)
-    set(output_file ${shader}.u32)
+
+    set(output_file "${CMAKE_BINARY_DIR}/imgui_shaders/${FILE_NAME}.u32")
 
     add_custom_command(
         OUTPUT ${output_file}
+        COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/imgui_shaders
         COMMAND glslangValidator -V -x -o ${output_file} ${shader}
         DEPENDS ${shader}
-        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
         COMMENT "Compiling ImGui shader ${FILE_NAME}"
+        VERBATIM
     )
 
     list(APPEND IMGUI_SHADER_OUTPUTS ${output_file})
 endforeach()
 
-add_custom_target(imgui_shaders DEPENDS ${IMGUI_SHADER_OUTPUTS})
+add_custom_target(imgui_shaders ALL DEPENDS ${IMGUI_SHADER_OUTPUTS})
 add_dependencies(imgui imgui_shaders)
 
 # ---- Main sources ----
@@ -94,39 +97,24 @@ file(GLOB COMP_SHADERS shaders/*.comp)
 set(SHADER_OUTPUT_DIR ${CMAKE_BINARY_DIR}/shaders)
 file(MAKE_DIRECTORY ${SHADER_OUTPUT_DIR})
 
-function(compile_shader input_file)
-    get_filename_component(FILE_NAME ${input_file} NAME)
+set(SHADER_OUTPUTS "")
+
+foreach(shader ${VERT_SHADERS} ${FRAG_SHADERS} ${COMP_SHADERS})
+    get_filename_component(FILE_NAME ${shader} NAME)
     set(output_file ${SHADER_OUTPUT_DIR}/${FILE_NAME}.spv)
 
     add_custom_command(
         OUTPUT ${output_file}
-        COMMAND ${Vulkan_GLSLC_EXECUTABLE} ${input_file} -o ${output_file}
-        DEPENDS ${input_file}
+        COMMAND ${CMAKE_COMMAND} -E make_directory ${SHADER_OUTPUT_DIR}
+        COMMAND ${Vulkan_GLSLC_EXECUTABLE} ${shader} -o ${output_file}
+        DEPENDS ${shader}
         COMMENT "Compiling shader ${FILE_NAME}"
+        VERBATIM
     )
 
     list(APPEND SHADER_OUTPUTS ${output_file})
-    set(SHADER_OUTPUTS ${SHADER_OUTPUTS} PARENT_SCOPE)
-endfunction()
 
-set(SHADER_OUTPUTS)
-
-foreach(shader ${VERT_SHADERS})
-    compile_shader(${shader})
-endforeach()
-
-foreach(shader ${FRAG_SHADERS})
-    compile_shader(${shader})
-endforeach()
-
-foreach(shader ${COMP_SHADERS})
-    compile_shader(${shader})
 endforeach()
 
 add_custom_target(shaders ALL DEPENDS ${SHADER_OUTPUTS})
 add_dependencies(app shaders)
-add_custom_command(TARGET app POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
-    "${CMAKE_BINARY_DIR}/shaders"
-    "${CMAKE_SOURCE_DIR}/build/shaders"
-)

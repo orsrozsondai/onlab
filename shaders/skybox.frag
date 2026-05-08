@@ -17,6 +17,5 @@ vec3 toneMapACES(vec3 x) {
 void main() {
     vec3 dir = normalize(fragDir);
     vec3 color = texture(environmentMap, dir).rgb;
-    // color = vec3(1.0, 0, 0);
     outColor = vec4(toneMapACES(color), 1.0);
 }
