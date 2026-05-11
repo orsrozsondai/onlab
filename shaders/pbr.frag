@@ -47,6 +47,12 @@ layout(set = 2, binding = 2) uniform sampler2D brdfLUT;
 #define BRDF_SPECULAR_DISNEY        (1 << 8)
 
 const float PI = 3.1415926535;
+
+vec3 samplePrefilter(vec3 n, float roughness) {
+    float lod = roughness*roughness*11.0f + 0.3f;
+    lod = min(9, lod);
+    return textureLod(prefilter, n, lod).rgb;
+}
 vec3 F_schlick(vec3 v, vec3 h) {
     float vdoth = max(dot(v,h), 0.0);
     vec3 F0 = mix(vec3(0.04), material.albedo, material.metallic);
@@ -248,11 +254,11 @@ void main() {
         }
 
         if ((BRDF_SPECULAR_BLINN_PHONG & BRDF) != 0) {
-            color += textureLod(prefilter, R, material.roughness * 11.0f).rgb * fs_blinnphong(n) * .001f * material.albedo;
+            color += samplePrefilter(R, material.roughness) * fs_blinnphong(n) * .001f * material.albedo;
         }
 
         if ((BRDF_SPECULAR_COOK_TORRANCE & BRDF) != 0) {
-            vec3 prefilteredColor = textureLod(prefilter, R,  material.roughness * 11.0f).rgb;
+            vec3 prefilteredColor = samplePrefilter(R, material.roughness);
             vec2 brdf = texture(brdfLUT, vec2(ndotv, material.roughness)).rg;
             vec3 F0 = mix(vec3(0.04), material.albedo, material.metallic);
             color += prefilteredColor * (F0 * brdf.x + brdf.y);
@@ -274,7 +280,7 @@ void main() {
                 Rt.y * b +
                 Rt.z * n
             );
-            vec3 envSpec = textureLod(prefilter, R_aniso, material.roughness * 11.0f).rgb;
+            vec3 envSpec = samplePrefilter(R_aniso, material.roughness);
             vec3 H = normalize(v + R_aniso);
             vec3 F = F_schlick(v, H);
 
@@ -282,14 +288,15 @@ void main() {
         }
 
         if ((BRDF_SPECULAR_DISNEY & BRDF) != 0) {
-            vec3 prefilteredColor = textureLod(prefilter, R,  material.roughness * 11.0f).rgb;
+            vec3 prefilteredColor = samplePrefilter(R, material.roughness);
             vec2 brdf = texture(brdfLUT, vec2(ndotv, material.roughness)).rg;
             vec3 F0 = mix(vec3(0.04), material.albedo, material.metallic);
             color += prefilteredColor * (F0 * brdf.x + brdf.y);
 
             // CLEARCOAT
             float ccRoughness = 1-material.clearcoatGloss;
-            vec3 prefilteredCC = textureLod(prefilter, R, ccRoughness * 11.0).rgb;
+            // vec3 prefilteredCC = textureLod(prefilter, R, ccRoughness * 11.0).rgb;
+            vec3 prefilteredCC = samplePrefilter(R, ccRoughness);
             
             float Fc = pow(1.0 - ndotv, 5.0);
             float Fcc = mix(0.04, 1.0, Fc);
@@ -297,7 +304,7 @@ void main() {
             color += material.clearcoat * prefilteredCC * (Fcc * brdfcc.x + brdfcc.y);
 
             // SHEEN
-            vec3 sheenColor = mix(vec3(1.0), normalize(material.albedo), material.sheenTint);
+            vec3 sheenColor = normalize(mix(vec3(1.0), material.albedo, material.sheenTint));
             color += material.sheen * sheenColor * Fc * texture(irradiance, n).rgb;
         }
 

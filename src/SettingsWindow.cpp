@@ -88,10 +88,10 @@ void SettingsWindow::initStyle() {
     ImGuiStyle& style = ImGui::GetStyle();
     style.ItemSpacing.y = 1;
 
-    float xscale, yscale;
-    glfwGetWindowContentScale(context.window, &xscale, &yscale);
-    float dpiScale = (xscale + yscale) * 0.5f;
-    io->FontGlobalScale = dpiScale;
+    // float xscale, yscale;
+    // glfwGetWindowContentScale(context.window, &xscale, &yscale);
+    // float dpiScale = (xscale + yscale) * 0.5f;
+    // io->FontGlobalScale = dpiScale;
 }
 
 void SettingsWindow::draw(VkCommandBuffer cmd) {
