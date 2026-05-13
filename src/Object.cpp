@@ -160,7 +160,7 @@ Pipeline* Object::getPipeline() const {
 }
 
 void Object::destroy(){
-    // std::cout << "Destroying object: " << vertexBuffer << std::endl;
+    vkDeviceWaitIdle(context.device);
     if (vertexBuffer != VK_NULL_HANDLE) {
         vkDestroyBuffer(context.device, vertexBuffer, nullptr);
         vertexBuffer = VK_NULL_HANDLE;
@@ -190,6 +190,16 @@ void Object::destroy(){
         fs_uniformBuffers[i] = VK_NULL_HANDLE;
         if (fs_uniformBuffersMemory[i] != VK_NULL_HANDLE) vkFreeMemory(context.device, fs_uniformBuffersMemory[i], nullptr);
         fs_uniformBuffersMemory[i] = VK_NULL_HANDLE;
+
+    }
+    if (descriptorSets[0] != VK_NULL_HANDLE) {
+        vkFreeDescriptorSets(
+            context.device,
+            context.descriptorPool,
+            descriptorSets.size(),
+            descriptorSets.data()
+        );
+        descriptorSets[0] = VK_NULL_HANDLE;
     }
 }
 

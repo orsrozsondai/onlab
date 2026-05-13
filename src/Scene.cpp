@@ -153,6 +153,13 @@ void Scene::setMeshIndex(int index) {
     destroyObjects();
     createObjects();
 }
+const std::vector<const char*> Scene::getMeshNames() const {
+    std::vector<const char*> names(meshes.size());
+    for (size_t i = 0; i < names.size(); i++) {
+        names[i] = meshes[i].get()->getName().c_str();
+    }
+    return names;
+}
 
 void Scene::update() {
     

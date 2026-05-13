@@ -19,7 +19,6 @@ private:
 
     RenderContext context;
     std::string filePath;
-    // static constexpr uint32_t cubeFaceSize = 2048;
 
     // Images
     GPUImage hdrImage;
@@ -44,23 +43,20 @@ private:
     VkDescriptorSet DS;
 
     // Metadata
-    uint32_t prefilterMipLevels;
     void init();
     ImageInfo loadImage();
     void createHDRImage();
-    // void createEnvironmentCubemap();
-    // void createIrradianceMap();
-    // void createPrefilterMap();
-    // void createBRDFLUT();
     void createSamplers();
     void createDescriptorSet();
 
     void createSkyboxDescriptorSetLayout();
     void createSkyboxPipeline();
     void createSkyboxDescriptor();
+    ImageInfo generateEnv();
 
 public:
     EnvMap(const RenderContext& context, const std::string& path, VkDescriptorSetLayout DSL);
+    EnvMap(const RenderContext& context, VkDescriptorSetLayout DSL); // use generated image
     void renderSkybox(VkCommandBuffer cmd, VkExtent2D extent, glm::mat4 view, glm::mat4 proj);
     void bindDescriptorSet(VkCommandBuffer cmd, VkPipelineLayout pl);
     

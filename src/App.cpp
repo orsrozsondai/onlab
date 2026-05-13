@@ -817,6 +817,7 @@ void App::createDescriptorPool() {
     poolInfo.poolSizeCount = poolSizes.size();
     poolInfo.pPoolSizes = poolSizes.data();
     poolInfo.maxSets = imageCount * MAX_OBJECT_COUNT*2 + imageCount;
+    poolInfo.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
 
     if (vkCreateDescriptorPool(device, &poolInfo, nullptr, &descriptorPool) != VK_SUCCESS) {
         throw std::runtime_error("failed to creater descriptor pool!");
@@ -850,8 +851,8 @@ void App::destroy() {
     if (dragCursor) glfwDestroyCursor(dragCursor);
     vkDeviceWaitIdle(device);
     delete settingsWindow;
-    vkDestroyDescriptorPool(device, descriptorPool, nullptr);
     scene->destroy();
+    vkDestroyDescriptorPool(device, descriptorPool, nullptr);
     for (int i = 0; i < (int)imageCount; i++) {
         vkDestroySemaphore(device, imageAvailable[i], nullptr);
         vkDestroySemaphore(device, renderFinished[i], nullptr);

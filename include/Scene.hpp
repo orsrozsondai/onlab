@@ -1,5 +1,6 @@
 #pragma once
 #include <glm/ext/vector_float3.hpp>
+#include <string>
 #include <vector>
 #include <memory>
 #include <vulkan/vulkan_core.h>
@@ -36,7 +37,6 @@ private:
     void createUniformBuffers();
     void createObjects();
     void destroyObjects();
-    void setMeshIndex(int index);
     void arrangeObjects();
     void interpolateFloat(MaterialParameters param);
     void interpolateVec3(MaterialParameters param);
@@ -47,6 +47,8 @@ public:
     void update();
     void draw(VkCommandBuffer cmd, VkExtent2D extent, size_t frameIndex);
     void addMesh(std::unique_ptr<MeshLoader> mesh);
+    void setMeshIndex(int index);
+    const std::vector<const char*> getMeshNames() const;
     Pipeline* getPipeline() const;
     SceneUBO* ubo();
     Object* selectedObject();

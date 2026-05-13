@@ -16,7 +16,7 @@
 int main() {
     auto skullMesh = std::make_unique<MeshLoader>("res/models/skull.obj", "Skull");
 
-    auto sphereMesh = std::make_unique<MeshLoader>("res/models/sphere.obj");
+    auto sphereMesh = std::make_unique<MeshLoader>("res/models/sphere.obj", "Sphere");
     
 
     App app("PBR");
@@ -37,6 +37,7 @@ int main() {
     );
     Scene scene(app.getRenderContext(), &p, &camera);
     scene.addMesh(std::move(sphereMesh));
+    scene.addMesh(std::move(skullMesh));
     scene.addEnvMap(&env);
 
     

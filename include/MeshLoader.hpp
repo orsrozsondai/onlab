@@ -15,6 +15,7 @@ public:
 
     const std::vector<Vertex>& getVertices() const;
     const std::vector<uint32_t>& getIndices() const;
+    const std::string& getName() const {return name;}
 
 private:
     void loadOBJ();

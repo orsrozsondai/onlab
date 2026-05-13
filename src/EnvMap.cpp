@@ -14,16 +14,130 @@
 EnvMap::EnvMap(const RenderContext& context, const std::string& path, VkDescriptorSetLayout DSL) : context(context), filePath(path), DSL(DSL) {
     init();
 }
+EnvMap::EnvMap(const RenderContext& context, VkDescriptorSetLayout DSL) : context(context), filePath(""), DSL(DSL) {
+    init();
+}
 
 EnvMap::ImageInfo EnvMap::loadImage() {
     ImageInfo res;
 
-    res.data = stbi_loadf(filePath.c_str(), &res.width, &res.height, &res.channels, STBI_rgb_alpha);
-    if (res.data)
-        std::cout << "Image loaded: " << res.width << " x " << res.height << std::endl;
-    else
-        throw std::runtime_error("Failed to load image: " + filePath);
+    if (filePath.empty()) {
+        res = generateEnv();
+        std::cout << "Image generated: " << res.width << " x " << res.height << std::endl;
+    }
+    else {
+        res.data = stbi_loadf(filePath.c_str(), &res.width, &res.height, &res.channels, STBI_rgb_alpha);
+        if (res.data)
+            std::cout << "Image loaded: " << res.width << " x " << res.height << std::endl;
+        else
+            throw std::runtime_error("Failed to load image: " + filePath);
+    }
     return res;
+}
+
+EnvMap::ImageInfo EnvMap::generateEnv() {
+
+    ImageInfo img;
+    img.width = 4096;
+    img.height = 2048;
+    img.channels = 4; // RGBA
+
+    img.data = new float[img.width * img.height * 4];
+
+    const float PI = 3.14159265359f;
+
+    // Sun direction
+    float sunDir[3] = { 0.0f, 0.8f, 0.6f };
+    float len = std::sqrt(sunDir[0]*sunDir[0] + sunDir[1]*sunDir[1] + sunDir[2]*sunDir[2]);
+    sunDir[0] /= len;
+    sunDir[1] /= len;
+    sunDir[2] /= len;
+
+    for (int y = 0; y < img.height; ++y)
+    {
+        float v = (float)y / (img.height - 1);
+        float theta = v * PI;
+
+        for (int x = 0; x < img.width; ++x)
+        {
+            float u = (float)x / (img.width - 1);
+            float phi = u * 2.0f * PI;
+
+            // Direction
+            float dir[3];
+            dir[0] = std::sin(theta) * std::cos(phi);
+            dir[1] = std::cos(theta);
+            dir[2] = std::sin(theta) * std::sin(phi);
+
+            float color[3];
+
+            if (dir[1] >= 0.0f)
+            {
+                // ---- SKY ----
+                float t = dir[1]; // already [0,1]
+
+                float skyColor[3] = {
+                    (1.0f - t) * 0.8f + t * 0.1f,
+                    (1.0f - t) * 0.9f + t * 0.4f,
+                    (1.0f - t) * 1.0f + t * 0.8f
+                };
+
+                color[0] = skyColor[0];
+                color[1] = skyColor[1];
+                color[2] = skyColor[2];
+            }
+            else
+            {
+                // ---- GROUND ----
+                float t = -dir[1]; // [0,1] downward
+
+                // Dark ground color (slightly warm)
+                float groundColor[3] = {
+                    0.05f + 0.1f * t,
+                    0.04f + 0.08f * t,
+                    0.03f + 0.06f * t
+                };
+
+                color[0] = groundColor[0];
+                color[1] = groundColor[1];
+                color[2] = groundColor[2];
+            }
+
+
+            // ---- SUN ----
+            float dot = dir[0]*sunDir[0] + dir[1]*sunDir[1] + dir[2]*sunDir[2];
+            float sun = std::pow(std::fmax(dot, 0.0f), 1000.0f);
+            float sunIntensity = 30.0f;
+
+            if (dir[1] >= 0.0f)
+            {
+                // SKY
+                float t = dir[1];
+            
+                color[0] = (1.0f - t) * 0.8f + t * 0.1f;
+                color[1] = (1.0f - t) * 0.9f + t * 0.4f;
+                color[2] = (1.0f - t) * 1.0f + t * 0.8f;
+            }
+            else
+            {
+                // GROUND
+                float t = -dir[1];
+            
+                color[0] = 0.05f + 0.1f * t;
+                color[1] = 0.04f + 0.08f * t;
+                color[2] = 0.03f + 0.06f * t;
+            }
+
+            int idx = (y * img.width + x) * 4;
+            img.data[idx + 0] = color[0] + sun * sunIntensity;
+            img.data[idx + 1] = color[1] + sun * sunIntensity;
+            img.data[idx + 2] = color[2] + sun * sunIntensity;
+            img.data[idx + 3] = 1.0f;
+        }
+    }
+
+    return img;
+
 }
 
 void EnvMap::init() {
@@ -39,11 +153,7 @@ void EnvMap::init() {
     prefilter = proc.createPrefilterMap();
     brdfLUT = proc.createBRDFLUT();
 
-
-    
     createDescriptorSet();
-    
-
     proc.destroy();
 }
 
@@ -156,8 +266,6 @@ void EnvMap::createSamplers() {
 
 void EnvMap::createDescriptorSet() {
     
-    // std::array<VkDescriptorSetLayoutBinding, 3> bindings{};
-
     VkDescriptorImageInfo irradianceInfo {
         sampler,
         irradiance.view,

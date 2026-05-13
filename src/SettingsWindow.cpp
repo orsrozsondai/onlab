@@ -1,6 +1,7 @@
 #include "SettingsWindow.hpp"
 #include "Camera.hpp"
 #include "Config.hpp"
+#include "MeshLoader.hpp"
 #include "Scene.hpp"
 #include "UniformBufferObjects.hpp"
 #include "Object.hpp"
@@ -127,7 +128,9 @@ void SettingsWindow::update() {
     static glm::vec2 lightDir(0,0);
     static const char* BRDFNames[] = {"None", "Lambert", "Oren-Nayar", "Burley", "None", "Blinn-Phong", "Cook-Torrance", "Ward", "Disney"};
     static int diffuse = 0, specular = 0;
-    static int camera_fov = 45;
+    static int cameraFov = 45;
+    static int meshIndex = 0;
+    static const auto meshNames = scene->getMeshNames();
     ImGuiStyle& style = ImGui::GetStyle();
 
     ImGui::PushItemWidth(-FLT_MIN);
@@ -137,13 +140,17 @@ void SettingsWindow::update() {
     if (ImGui::SliderInt("##obj_count", &objc, 1, MAX_OBJECT_COUNT)) {
         scene->setObjectCount(objc);
     }
+    ImGui::Text("Mesh:");
+    if (ImGui::Combo("##mesh", &meshIndex, meshNames.data(), meshNames.size())) {
+        scene->setMeshIndex(meshIndex);
+    }
     ImGui::Text("Object distance:");
     if (ImGui::SliderFloat("##obj_dist", &objd, 1.f, 10.f)) {
         scene->setObjectDistance(objd);
     }
     ImGui::Text("Camera FOV:");
-    if (ImGui::SliderInt("##fov", &camera_fov, 30, 90)) {
-        scene->getCamera()->setFov((float)camera_fov);
+    if (ImGui::SliderInt("##fov", &cameraFov, 30, 90)) {
+        scene->getCamera()->setFov((float)cameraFov);
     }
     ImGui::Text("BRDF:");
     ImGui::PopItemWidth();
