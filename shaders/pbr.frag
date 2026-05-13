@@ -121,9 +121,6 @@ vec3 fs_CookTorrance(vec3 v, vec3 l, vec3 h) {
     return (D_GGX(h) * F_schlick(v, h) * G_Smith(l, v)) / max(4 * ndotl * ndotv, 0.00000001);
 }
 
-vec3 fd_lambert() {
-    return material.albedo / PI;
-}
 
 float fs_blinnphong(vec3 h) {
     float ndoth = max(dot(normalize(worldNormal), h), 0.0);
@@ -165,12 +162,12 @@ float fs_ward(
     return exp(exponent) / denom;
 }
 
-vec3 fd_orennayar(vec3 N, vec3 L, vec3 V) {
+float fd_orennayar(vec3 N, vec3 L, vec3 V) {
     float NdotL = max(dot(N, L), 0.0);
     float NdotV = max(dot(N, V), 0.0);
 
     if (NdotL <= 0.0 || NdotV <= 0.0)
-        return vec3(0.0);
+        return 0;
 
     float sigma = material.roughness * material.roughness;
 
@@ -190,18 +187,18 @@ vec3 fd_orennayar(vec3 N, vec3 L, vec3 V) {
 
     float cos_phi_diff = max(dot(Vperp, Lperp), 0.0);
 
-    return (material.albedo / PI) * (A + B * cos_phi_diff * sin(alpha) * tan(beta));
+    return (A + B * cos_phi_diff * sin(alpha) * tan(beta));
 
     
 }
 
-vec3 fd_burley(vec3 N, vec3 V, vec3 H, vec3 L) {
+float fd_burley(vec3 N, vec3 V, vec3 H, vec3 L) {
     float vdoth = max(0, dot(V,H));
     float ndotv = max(0, dot(N,V));
     float ndotl = max(0, dot(N,L));
     float F90_1 = -0.5 + (2 * material.roughness * vdoth * vdoth);
 
-    return (material.albedo / PI) * (1 + (F90_1 * pow(1-ndotl, 5))) * (1 + (F90_1 * pow(1-ndotv, 5)));
+    return (1 + (F90_1 * pow(1-ndotl, 5))) * (1 + (F90_1 * pow(1-ndotv, 5)));
 }
 
 
@@ -237,20 +234,18 @@ void main() {
     vec3 color = scene.ambientLight * material.albedo * 0.1; 
     
     if (scene.ibl) {
-        vec3 kD = vec3(1) - F_schlick_roughness(ndotv, material.roughness);
-        kD *= (1.0 - material.metallic);
+        float kD = 1.0 - material.metallic;
         vec3 R = reflect(-v,n);
         if ((BRDF_DIFFUSE_LAMBERT & BRDF) != 0) {
-            color += texture(irradiance, n).rgb * fd_lambert() * kD;
-
+            color += texture(irradiance, n).rgb * material.albedo * kD;
         }
 
         if ((BRDF_DIFFUSE_OREN_NAYAR & BRDF) != 0) {
-            color += texture(irradiance, n).rgb * fd_orennayar(n, n, v) * kD;
+            color += texture(irradiance, n).rgb * material.albedo * fd_orennayar(n, n, v) * kD;
         }
 
         if ((BRDF_DIFFUSE_BURLEY & BRDF) != 0) {
-            color += texture(irradiance, n).rgb * fd_burley(n, v, normalize(v+n), n) * kD;
+            color += texture(irradiance, n).rgb * material.albedo * fd_burley(n, v, normalize(v+n), n) * kD;
         }
 
         if ((BRDF_SPECULAR_BLINN_PHONG & BRDF) != 0) {
@@ -304,7 +299,9 @@ void main() {
             color += material.clearcoat * prefilteredCC * (Fcc * brdfcc.x + brdfcc.y);
 
             // SHEEN
-            vec3 sheenColor = normalize(mix(vec3(1.0), material.albedo, material.sheenTint));
+            vec3 sheenColor = mix(vec3(1.0), material.albedo, material.sheenTint);
+            if (length(sheenColor) == 0) sheenColor = vec3(1.0);
+            sheenColor = normalize(sheenColor);
             color += material.sheen * sheenColor * Fc * texture(irradiance, n).rgb;
         }
 
@@ -316,15 +313,15 @@ void main() {
         kD *= (1.0 - material.metallic);
 
         if ((BRDF_DIFFUSE_LAMBERT & BRDF) != 0) {
-            color += fd_lambert() * ndotl * scene.lightColor * kD;
+            color += (material.albedo/PI) * ndotl * scene.lightColor * kD;
         }
 
         if ((BRDF_DIFFUSE_OREN_NAYAR & BRDF) != 0) {
-            color += fd_orennayar(n, l, v) * ndotl * scene.lightColor * kD;
+            color += (material.albedo/PI) * fd_orennayar(n, l, v) * ndotl * scene.lightColor * kD;
         }
 
         if ((BRDF_DIFFUSE_BURLEY & BRDF) != 0) {
-            color += fd_burley(n, v, h, l) * ndotl * scene.lightColor * kD;
+            color += (material.albedo/PI) * fd_burley(n, v, h, l) * ndotl * scene.lightColor * kD;
         }
 
         if ((BRDF_SPECULAR_BLINN_PHONG & BRDF) != 0) {
